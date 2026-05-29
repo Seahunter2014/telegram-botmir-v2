@@ -1,0 +1,26 @@
+{
+  "project_name": "Мир на ладони",
+  "public_channel": "@NadoTurKrd",
+  "public_channel_url": "https://t.me/NadoTurKrd",
+  "tourjin_bot": "@TourJin_bot",
+  "signature": "С любовью, ваш Мир на ладони 🌍",
+  "default_hashtags": ["#МирНаЛадони", "#Путешествия", "#ТурДжин"],
+  "language": "ru",
+  "content_ratio": {
+    "inspiration": 35,
+    "useful": 25,
+    "news_event": 15,
+    "commercial": 15,
+    "engagement": 10
+  },
+  "tone": {
+    "base": "умный, живой, редакционный, без канцелярита и без нейросеточной воды",
+    "forbidden": ["англицизмы без необходимости", "инфоцыганская мотивация", "канцелярит", "псевдофилософия", "одинаковые концовки"],
+    "emoji_policy": "1–5 эмодзи на пост, только если они помогают навигации или эмоции"
+  },
+  "length": {
+    "min_chars": 650,
+    "target_chars": 1200,
+    "max_chars": 2600
+  }
+}

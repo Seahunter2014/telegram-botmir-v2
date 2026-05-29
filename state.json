@@ -1,0 +1,41 @@
+{
+  "services": [
+    {"key":"aviasales","name":"Aviasales","category":"flights","priority":100,"env_marker":"TRAVELPAYOUTS_MARKER","url_template":"https://www.aviasales.ru/?marker={marker}","button":"✈️ Посмотреть билеты","use_for":["cheap_flight","flight_deal","destination_post","weekend_trip","city_break","event_trip","concert_trip"]},
+    {"key":"ostrovok","name":"Ostrovok","category":"hotels","priority":90,"url":"https://ostrovok.tp.st/yHBoZUg7","button":"🏨 Подобрать отель","use_for":["hotel_post","premium_hotel","destination_post","weekend_trip","city_break","event_trip","family_trip","luxury_escape"]},
+    {"key":"travelata","name":"Travelata","category":"tours","priority":95,"url":"https://travelata.tp.st/","button":"🌴 Найти тур","use_for":["tour_offer","last_minute","beach_trip","family_trip"]},
+    {"key":"tripster","name":"Tripster","category":"excursions","priority":80,"url":"https://experience.tripster.ru/?exp_partner=","button":"🎭 Найти экскурсии","use_for":["city_break","activities_post","weekend_activity","gastronomy_trip","hidden_places"]},
+    {"key":"trip_com_activities","name":"Trip.com Activities","category":"activities","priority":72,"url":"https://www.trip.com/things-to-do/","button":"🎟 Выбрать впечатления","use_for":["activities_post","weekend_activity","event_trip"]},
+    {"key":"cherehapa","name":"Cherehapa","category":"insurance","priority":70,"url":"https://cherehapa.tp.st/","button":"🛡 Проверить страховку","use_for":["insurance_tip","practical_travel","family_trip","visa_news"]},
+    {"key":"kiwitaxi","name":"Kiwitaxi","category":"transfer","priority":60,"url":"https://kiwitaxi.tp.st/","button":"🚖 Заказать трансфер","use_for":["family_trip","premium_hotel","destination_post"]},
+    {"key":"localrent","name":"LocalRent","category":"car_rental","priority":58,"url":"https://localrent.tp.st/","button":"🚗 Арендовать авто","use_for":["roadtrip","mountain_trip","family_trip","destination_post"]},
+    {"key":"everylounge","name":"EveryLounge","category":"airport_lounge","priority":54,"url":"https://everylounge.tp.st/","button":"🍸 Лаунжи в аэропорту","use_for":["airport_lounge","practical_travel"]},
+    {"key":"tourjin","name":"Тур Джин","category":"general_bot","priority":100,"url":"https://t.me/TourJin_bot","button":"🧞 Спросить Тур Джина","use_for":["destination_post","weekend_trip","tour_offer","flight_deal","hotel_post","family_trip","visa_news","practical_travel"]}
+  ],
+  "cta_profiles": {
+    "flights_hard": ["aviasales", "tourjin"],
+    "flights_hotels": ["aviasales", "ostrovok"],
+    "flights_hotels_soft": ["aviasales", "ostrovok", "tourjin"],
+    "tours_insurance": ["travelata", "cherehapa"],
+    "tours_hard": ["travelata", "tourjin"],
+    "hotels_flights": ["ostrovok", "aviasales"],
+    "hotels_luxury": ["ostrovok", "kiwitaxi"],
+    "events_flights_hotels": ["trip_com_activities", "aviasales", "ostrovok"],
+    "activities_soft": ["tripster", "trip_com_activities"],
+    "activities_excursions": ["tripster", "trip_com_activities"],
+    "consultation_soft": ["tourjin"],
+    "useful_soft": ["tourjin", "cherehapa"],
+    "family_tours_hotels": ["travelata", "ostrovok", "cherehapa"],
+    "tours_hotels": ["travelata", "ostrovok"],
+    "hotels_excursions": ["ostrovok", "tripster"],
+    "airport_lounges": ["everylounge", "tourjin"],
+    "insurance_soft": ["cherehapa"],
+    "none_or_soft": ["tourjin"]
+  },
+  "rules": [
+    "Не вставлять партнёрскую ссылку ради галочки.",
+    "В вдохновляющих постах допускается максимум 1–2 мягкие кнопки.",
+    "В полезных постах сначала польза, потом ссылка.",
+    "В новостях о визах и переезде не обещать результат и не давать юридических гарантий.",
+    "Если в сигнале нет цены, даты или маршрута, бот не должен выдумывать конкретику."
+  ]
+}

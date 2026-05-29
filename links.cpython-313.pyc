@@ -1,0 +1,41 @@
+from __future__ import annotations
+
+import os
+from datetime import datetime
+
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
+
+_scheduler: AsyncIOScheduler | None = None
+
+
+def get_post_times() -> list[str]:
+    raw = os.getenv("POST_TIMES", "09:00,14:00,19:00")
+    return [item.strip() for item in raw.split(",") if item.strip()]
+
+
+def start_scheduler(job_func, *args) -> AsyncIOScheduler:
+    global _scheduler
+    if _scheduler and _scheduler.running:
+        return _scheduler
+    timezone = os.getenv("TIMEZONE", "Europe/Moscow")
+    scheduler = AsyncIOScheduler(timezone=timezone)
+    for time_value in get_post_times():
+        try:
+            hour, minute = [int(x) for x in time_value.split(":", 1)]
+        except Exception:
+            continue
+        scheduler.add_job(job_func, CronTrigger(hour=hour, minute=minute), args=list(args), id=f"post_{hour}_{minute}", replace_existing=True)
+    scheduler.start()
+    _scheduler = scheduler
+    return scheduler
+
+
+def scheduler_status() -> str:
+    if not _scheduler or not _scheduler.running:
+        return "Планировщик не запущен."
+    jobs = _scheduler.get_jobs()
+    lines = ["Планировщик запущен."]
+    for job in jobs:
+        lines.append(f"- {job.id}: следующий запуск {job.next_run_time}")
+    return "\n".join(lines)

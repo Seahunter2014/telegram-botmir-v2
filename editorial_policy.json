@@ -1,0 +1,24 @@
+{
+  "sources": [
+    {"key":"vandrouki","name":"Vandrouki","url":"https://t.me/s/vandroukiru","type":"telegram_html","priority":95,"roles":["cheap_flight","flight_deal","weekend_trip"],"fresh_hours":72,"enabled":true},
+    {"key":"aviasales_telegram","name":"Авиасейлс Telegram","url":"https://t.me/s/aviasales","type":"telegram_html","priority":92,"roles":["flight_deal","cheap_flight","travel_hack"],"fresh_hours":72,"enabled":true},
+    {"key":"travelata_telegram","name":"Travelata Telegram","url":"https://t.me/s/travelata","type":"telegram_html","priority":88,"roles":["tour_offer","last_minute","beach_trip"],"fresh_hours":72,"enabled":true},
+    {"key":"psgr_journal","name":"ПСЖР / Авиасейлс","url":"https://www.aviasales.ru/psgr","type":"site_listing","priority":84,"roles":["destination_post","city_break","practical_travel"],"fresh_hours":168,"enabled":true},
+    {"key":"travelask","name":"TravelAsk","url":"https://travelask.ru/","type":"site_listing","priority":82,"roles":["destination_post","hidden_places","viral_travel"],"fresh_hours":168,"enabled":true},
+    {"key":"tripster_journal","name":"Журнал Tripster","url":"https://experience.tripster.ru/journal/","type":"site_listing","priority":86,"roles":["city_break","hidden_places","gastronomy_trip","weekend_trip"],"fresh_hours":168,"enabled":true},
+    {"key":"yandex_travel_journal","name":"Журнал Яндекс Путешествий","url":"https://travel.yandex.ru/journal/","type":"site_listing","priority":80,"roles":["destination_post","practical_travel","family_trip"],"fresh_hours":168,"enabled":true},
+    {"key":"gorbilet_events","name":"Горбилет","url":"https://gorbilet.com/","type":"site_listing","priority":82,"roles":["event_trip","concert_trip","weekend_activity"],"fresh_hours":120,"enabled":true},
+    {"key":"psgr_concerts","name":"ПСЖР: концерты мировых звёзд","url":"https://www.aviasales.ru/psgr","type":"site_listing","priority":78,"roles":["concert_trip","event_trip"],"fresh_hours":168,"enabled":true},
+    {"key":"imigrata","name":"IMIGRATA","url":"https://t.me/s/imigrata","type":"telegram_html","priority":68,"roles":["visa_news","relocation"],"fresh_hours":168,"enabled":true},
+    {"key":"relocate_easy","name":"relocate_easy","url":"https://t.me/s/relocate_easy","type":"telegram_html","priority":68,"roles":["relocation","digital_nomad","visa_news"],"fresh_hours":168,"enabled":true},
+    {"key":"ekspat_info","name":"ekspat_info","url":"https://t.me/s/ekspat_info","type":"telegram_html","priority":64,"roles":["relocation","digital_nomad"],"fresh_hours":168,"enabled":true},
+    {"key":"puteshe","name":"puteshe","url":"https://t.me/s/puteshe","type":"telegram_html","priority":72,"roles":["destination_post","travel_hack","hidden_places"],"fresh_hours":120,"enabled":true},
+    {"key":"trip_activities","name":"Trip.com Activities","url":"https://www.trip.com/things-to-do/","type":"site_listing","priority":70,"roles":["activities_post","weekend_activity"],"fresh_hours":168,"enabled":true}
+  ],
+  "fallback_signals": [
+    {"title":"Идея короткой поездки на 2–3 дня без перегруза маршрута","summary":"Подборка городов, где можно устроить смену картинки за выходные: прогулки, еда, отель и один сильный повод поехать.","topic_hint":"weekend_trip","source_key":"editorial_seed"},
+    {"title":"Как выбрать отель, который действительно станет частью поездки","summary":"Пост о проживании как самостоятельном впечатлении: вид, район, завтрак, тишина, маршрут рядом.","topic_hint":"hotel_post","source_key":"editorial_seed"},
+    {"title":"Билет как повод: когда низкая цена превращает направление в реальный план","summary":"Редакционный пост о дешёвом перелёте без давления и без выдуманных цен.","topic_hint":"flight_deal","source_key":"editorial_seed"},
+    {"title":"Что проверить перед поездкой: документы, связь, деньги и страховка","summary":"Полезный пост-чеклист без запугивания и канцелярита.","topic_hint":"practical_travel","source_key":"editorial_seed"}
+  ]
+}

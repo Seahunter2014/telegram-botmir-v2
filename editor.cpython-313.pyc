@@ -1,0 +1,36 @@
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+from telegram import Bot, InlineKeyboardButton, InlineKeyboardMarkup
+
+from .models import PostPackage, PostVariant
+
+
+def build_markup(buttons: list[dict[str, str]]) -> InlineKeyboardMarkup | None:
+    rows = []
+    for item in buttons[:3]:
+        if item.get("text") and item.get("url"):
+            rows.append([InlineKeyboardButton(item["text"], url=item["url"])])
+    return InlineKeyboardMarkup(rows) if rows else None
+
+
+def append_signature(text: str, configs: dict[str, Any]) -> str:
+    channel = configs["channel"]
+    signature = channel.get("signature", "")
+    hashtags = " ".join(channel.get("default_hashtags", [])[:4])
+    result = text.strip()
+    if signature and signature not in result:
+        result += f"\n\n{signature}"
+    if hashtags and hashtags not in result:
+        result += f"\n\n{hashtags}"
+    return result[:3900]
+
+
+async def send_variant(bot: Bot, chat_id: str | int, package: PostPackage, variant: PostVariant, configs: dict[str, Any]) -> None:
+    markup = build_markup(package.buttons)
+    if package.media_path and Path(package.media_path).exists():
+        with open(package.media_path, "rb") as fh:
+            await bot.send_photo(chat_id=chat_id, photo=fh)
+    await bot.send_message(chat_id=chat_id, text=append_signature(variant.text, configs), reply_markup=markup, disable_web_page_preview=True)

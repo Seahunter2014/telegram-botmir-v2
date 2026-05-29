@@ -1,0 +1,276 @@
+from __future__ import annotations
+
+import asyncio
+import json
+import logging
+import os
+from dataclasses import asdict
+from datetime import datetime
+from typing import Any
+
+from dotenv import load_dotenv
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes
+
+from . import __version__
+from .config import load_all_configs
+from .delivery import send_variant
+from .models import PostPackage, PostVariant, RankedSignal, Signal, Topic
+from .pipeline import build_package
+from .scheduler import scheduler_status, start_scheduler
+from .storage import get_pending, remember_event, save_pending
+
+load_dotenv()
+logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(name)s | %(message)s")
+logger = logging.getLogger("mirnala_final_newsroom")
+
+
+def _admin_id() -> int | None:
+    raw = os.getenv("TELEGRAM_ADMIN_ID", "").strip()
+    return int(raw) if raw.isdigit() else None
+
+
+def _is_admin(update: Update) -> bool:
+    admin = _admin_id()
+    if admin is None:
+        return True
+    return bool(update.effective_user and update.effective_user.id == admin)
+
+
+async def _deny(update: Update) -> None:
+    if update.effective_message:
+        await update.effective_message.reply_text("Доступ только для администратора.")
+
+
+def _jsonable(value: Any) -> Any:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {k: _jsonable(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_jsonable(v) for v in value]
+    return value
+
+
+def _package_to_dict(package: PostPackage) -> dict[str, Any]:
+    return _jsonable(asdict(package))
+
+
+def _package_from_dict(data: dict[str, Any]) -> PostPackage:
+    sig_data = dict(data["ranked"]["signal"])
+    if isinstance(sig_data.get("published_at"), str):
+        try:
+            sig_data["published_at"] = datetime.fromisoformat(sig_data["published_at"])
+        except Exception:
+            sig_data.pop("published_at", None)
+    sig = Signal(**sig_data)
+    topic = Topic(**data["ranked"]["topic"])
+    ranked = RankedSignal(signal=sig, topic=topic, score=data["ranked"]["score"], reasons=data["ranked"].get("reasons", []))
+    variants = [PostVariant(**item) for item in data.get("variants", [])]
+    return PostPackage(ranked=ranked, variants=variants, buttons=data.get("buttons", []), media_path=data.get("media_path"), warnings=data.get("warnings", []))
+
+
+def _channel_id() -> str:
+    return os.getenv("TELEGRAM_CHANNEL_ID", "@NadoTurKrd").strip()
+
+
+def _test_channel_id() -> str:
+    return os.getenv("TEST_CHANNEL_ID", os.getenv("TELEGRAM_CHANNEL_ID", "@NadoTurKrd")).strip()
+
+
+async def start_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_admin(update):
+        await _deny(update)
+        return
+    await update.effective_message.reply_text(
+        "AI-редакция «Мир на ладони» готова.\n\n"
+        "Команды:\n"
+        "/version — версия и контур\n"
+        "/test [тема] — собрать 3 варианта и дать кнопки выбора\n"
+        "/publish [тема] — собрать и опубликовать лучший вариант\n"
+        "/topics — список тем\n"
+        "/sources — список источников\n"
+        "/services — реферальные сервисы\n"
+        "/schedule — расписание\n"
+    )
+
+
+async def version_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_admin(update):
+        await _deny(update)
+        return
+    configs = load_all_configs()
+    await update.effective_message.reply_text(
+        f"mirnala_bot_v3 — ВЕРСИЯ {__version__}\n"
+        f"Проект: {configs['channel']['project_name']}\n"
+        f"Тем: {len(configs['topics']['topics'])}\n"
+        f"Источников: {len(configs['sources']['sources'])}\n"
+        f"Сервисов: {len(configs['services']['services'])}\n"
+        f"Канал публикации: {_channel_id()}\n"
+        f"Тестовый канал: {_test_channel_id()}\n"
+        f"Модель OpenAI: {os.getenv('OPENAI_MODEL', 'gpt-4.1-mini')}\n"
+        "Архитектура: чистая AI-редакция, без старых шаблонов"
+    )
+
+
+async def topics_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_admin(update):
+        await _deny(update)
+        return
+    topics = load_all_configs()["topics"]["topics"]
+    text = "Темы редакции:\n" + "\n".join(f"- {t['key']}: {t['name']}" for t in topics)
+    await update.effective_message.reply_text(text[:3900])
+
+
+async def sources_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_admin(update):
+        await _deny(update)
+        return
+    sources = load_all_configs()["sources"]["sources"]
+    text = "Источники:\n" + "\n".join(f"- {s['name']} — {s['url']}" for s in sources)
+    await update.effective_message.reply_text(text[:3900], disable_web_page_preview=True)
+
+
+async def services_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_admin(update):
+        await _deny(update)
+        return
+    services = load_all_configs()["services"]["services"]
+    text = "Реферальные сервисы и кнопки:\n" + "\n".join(f"- {s['name']} ({s['category']}): {s.get('button', '')}" for s in services)
+    await update.effective_message.reply_text(text[:3900])
+
+
+async def schedule_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_admin(update):
+        await _deny(update)
+        return
+    await update.effective_message.reply_text(scheduler_status())
+
+
+def _approval_markup(token: str) -> InlineKeyboardMarkup:
+    rows = []
+    for idx in [1, 2, 3]:
+        rows.append([
+            InlineKeyboardButton(f"✅ В тест вариант {idx}", callback_data=f"testpub:{token}:{idx}"),
+            InlineKeyboardButton(f"🚀 В канал {idx}", callback_data=f"publish:{token}:{idx}"),
+        ])
+    rows.append([InlineKeyboardButton("🔄 Перегенерировать", callback_data="regenerate")])
+    return InlineKeyboardMarkup(rows)
+
+
+async def test_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_admin(update):
+        await _deny(update)
+        return
+    topic = context.args[0] if context.args else None
+    await update.effective_message.reply_text("Собираю тему, ранжирую источники и готовлю 3 редакционных варианта…")
+    try:
+        package = await asyncio.to_thread(build_package, topic)
+    except Exception as exc:
+        await update.effective_message.reply_text(f"Не удалось собрать пост: {exc}")
+        return
+    token = save_pending(update.effective_user.id if update.effective_user else 0, _package_to_dict(package))
+    lines = [
+        f"Выбранная тема: {package.ranked.topic.name}",
+        f"Источник: {package.ranked.signal.source_name}",
+        f"Сигнал: {package.ranked.signal.title}",
+        f"Оценка: {package.ranked.score}",
+        "",
+        "Варианты ниже. Выберите, что отправить в тест или в канал."
+    ]
+    if package.warnings:
+        lines.append("\nПредупреждения QA:\n" + "\n".join(package.warnings[:8]))
+    await update.effective_message.reply_text("\n".join(lines)[:3900], reply_markup=_approval_markup(token))
+    for variant in package.variants:
+        await update.effective_message.reply_text(
+            f"ВАРИАНТ {variant.index} | качество {variant.quality_score}\n\n{variant.text[:3400]}",
+            disable_web_page_preview=True,
+        )
+
+
+async def publish_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_admin(update):
+        await _deny(update)
+        return
+    topic = context.args[0] if context.args else None
+    await update.effective_message.reply_text("Собираю лучший вариант и публикую…")
+    try:
+        package = await asyncio.to_thread(build_package, topic)
+        best = sorted(package.variants, key=lambda v: v.quality_score, reverse=True)[0]
+        configs = load_all_configs()
+        await send_variant(context.bot, _channel_id(), package, best, configs)
+        remember_event("published", {"title": best.title, "topic": package.ranked.topic.key, "source_key": package.ranked.signal.source_key, "variant": best.index})
+        await update.effective_message.reply_text(f"Опубликовано: вариант {best.index}")
+    except Exception as exc:
+        await update.effective_message.reply_text(f"Публикация не удалась: {exc}")
+
+
+async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    query = update.callback_query
+    if not query:
+        return
+    await query.answer()
+    if not _is_admin(update):
+        await query.message.reply_text("Доступ только для администратора.")
+        return
+    if query.data == "regenerate":
+        await query.message.reply_text("Нажмите /test ещё раз — соберу новую тему или новый вариант.")
+        return
+    action, token, idx_raw = query.data.split(":", 2)
+    data = get_pending(token)
+    if not data:
+        await query.message.reply_text("Черновик не найден или устарел. Запустите /test заново.")
+        return
+    package = _package_from_dict(data)
+    idx = int(idx_raw)
+    variant = next((v for v in package.variants if v.index == idx), None)
+    if not variant:
+        await query.message.reply_text("Такого варианта нет.")
+        return
+    configs = load_all_configs()
+    chat_id = _test_channel_id() if action == "testpub" else _channel_id()
+    await send_variant(context.bot, chat_id, package, variant, configs)
+    remember_event("tested" if action == "testpub" else "published", {"title": variant.title, "topic": package.ranked.topic.key, "source_key": package.ranked.signal.source_key, "variant": variant.index})
+    await query.message.reply_text(f"Отправлено: {'тестовый канал' if action == 'testpub' else 'основной канал'}, вариант {idx}")
+
+
+async def scheduled_job(application: Application) -> None:
+    try:
+        package = await asyncio.to_thread(build_package, None)
+        best = sorted(package.variants, key=lambda v: v.quality_score, reverse=True)[0]
+        configs = load_all_configs()
+        await send_variant(application.bot, _channel_id(), package, best, configs)
+        remember_event("published", {"title": best.title, "topic": package.ranked.topic.key, "source_key": package.ranked.signal.source_key, "variant": best.index, "scheduled": True})
+    except Exception as exc:
+        logger.exception("Scheduled publication failed: %s", exc)
+
+
+async def post_init(application: Application) -> None:
+    start_scheduler(scheduled_job, application)
+
+
+def build_app() -> Application:
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    if not token:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN не задан")
+    app = Application.builder().token(token).post_init(post_init).build()
+    app.add_handler(CommandHandler("start", start_cmd))
+    app.add_handler(CommandHandler("version", version_cmd))
+    app.add_handler(CommandHandler("topics", topics_cmd))
+    app.add_handler(CommandHandler("sources", sources_cmd))
+    app.add_handler(CommandHandler("services", services_cmd))
+    app.add_handler(CommandHandler("schedule", schedule_cmd))
+    app.add_handler(CommandHandler("test", test_cmd))
+    app.add_handler(CommandHandler("publish", publish_cmd))
+    app.add_handler(CallbackQueryHandler(callback_handler, pattern=r"^(testpub|publish):|^regenerate$"))
+    return app
+
+
+def main() -> None:
+    logger.info("BOOT VERSION: %s", __version__)
+    app = build_app()
+    app.run_polling(drop_pending_updates=True)
+
+
+if __name__ == "__main__":
+    main()

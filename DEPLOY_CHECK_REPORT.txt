@@ -1,0 +1,8 @@
+.env
+__pycache__/
+*.pyc
+.DS_Store
+media_cache/*.jpg
+media_cache/*.png
+data/state.json
+logs/*.log

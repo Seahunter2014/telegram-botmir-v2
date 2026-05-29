@@ -1,0 +1,134 @@
+from __future__ import annotations
+
+import json
+import os
+import random
+from typing import Any
+
+try:
+    from openai import OpenAI
+except Exception:  # пакет будет установлен на Railway; локальная проверка может идти без него
+    OpenAI = None  # type: ignore
+
+from .links import cta_description
+from .models import PostVariant, RankedSignal
+from .qa import check_text, clean_public_text, score_variant
+
+
+def _fallback_variants(ranked: RankedSignal, configs: dict[str, Any]) -> list[PostVariant]:
+    title = ranked.signal.title.strip().rstrip(".")
+    topic_name = ranked.topic.name
+    summary = ranked.signal.summary.strip()
+    source_name = ranked.signal.source_name or "редакционный источник"
+    cta_hint = cta_description(ranked.topic.key, configs)
+    variants: list[PostVariant] = []
+    angles = [
+        ("практичный", "Разобрали тему без лишнего шума: что в ней полезного для поездки и где здесь реальный смысл для читателя."),
+        ("эмоциональный", "Смотрим на это как на повод сменить картинку, но без выдуманных обещаний и липкой рекламы."),
+        ("короткий редакционный", "Берём новость как отправную точку и превращаем её в понятный сценарий для путешествия.")
+    ]
+    for idx, (angle, lead) in enumerate(angles, start=1):
+        body = (
+            f"{title}\n\n"
+            f"{lead}\n\n"
+            f"Что важно: {summary[:420].rstrip('.')} .\n\n"
+            f"Для читателя это не просто новость из источника «{source_name}», а повод быстро понять: подходит ли тема под ближайшую поездку, выходные или подготовку к отпуску.\n\n"
+            f"Если тема откликается — проверьте детали, даты и условия до бронирования. В путешествиях выигрывает не тот, кто торопится, а тот, кто вовремя замечает хороший вариант."
+        )
+        body = clean_public_text(body)
+        variant = PostVariant(index=idx, title=title, text=body, cta_hint=cta_hint, risk_notes=["fallback без OpenAI"], quality_score=0)
+        variant.quality_score = score_variant(variant, configs)
+        variants.append(variant)
+    return variants
+
+
+def _extract_json(text: str) -> dict[str, Any]:
+    text = text.strip()
+    if text.startswith("```"):
+        text = text.strip("`")
+        if text.lower().startswith("json"):
+            text = text[4:].strip()
+    start = text.find("{")
+    end = text.rfind("}")
+    if start == -1 or end == -1:
+        raise ValueError("OpenAI не вернул JSON")
+    return json.loads(text[start:end + 1])
+
+
+def generate_variants(ranked: RankedSignal, configs: dict[str, Any]) -> list[PostVariant]:
+    enabled = os.getenv("AI_EDITOR_ENABLED", "true").lower() not in {"0", "false", "no"}
+    api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not enabled or not api_key or OpenAI is None:
+        return _fallback_variants(ranked, configs)
+
+    model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip()
+    temperature = float(os.getenv("OPENAI_TEMPERATURE", "0.85"))
+    prompts = configs["prompts"]
+    cta_hint = cta_description(ranked.topic.key, configs)
+
+    user_prompt = f"""
+Исходный сигнал:
+Заголовок: {ranked.signal.title}
+Краткое содержание: {ranked.signal.summary}
+Источник: {ranked.signal.source_name}
+Ссылка источника: {ranked.signal.url or 'нет'}
+
+Редакционная тема: {ranked.topic.name}
+Тип контента: {ranked.topic.content_type}
+CTA: {cta_hint}
+
+Задача:
+Сделай 3 разных варианта Telegram-поста на русском языке.
+Вариант 1 — редакционно-полезный.
+Вариант 2 — более эмоциональный и вовлекающий.
+Вариант 3 — более продающий, но без давления.
+
+Каждый вариант:
+- заголовок 1 строка;
+- текст 700–2200 знаков;
+- короткие абзацы;
+- без внутренней кухни;
+- без запрещённых шаблонных фраз;
+- без выдуманных фактов;
+- с живой конкретикой из исходного сигнала, если она есть.
+"""
+
+    client = OpenAI(api_key=api_key)
+    try:
+        response = client.chat.completions.create(
+            model=model,
+            temperature=temperature,
+            messages=[
+                {"role": "system", "content": prompts["system"] + "\n\n" + prompts["anti_template"] + "\n\n" + prompts["genre_matrix"]},
+                {"role": "user", "content": user_prompt},
+            ],
+        )
+        content = response.choices[0].message.content or ""
+        data = _extract_json(content)
+        variants: list[PostVariant] = []
+        for idx, item in enumerate(data.get("variants", [])[:3], start=1):
+            title = clean_public_text(str(item.get("title", ranked.signal.title)).strip())
+            text = clean_public_text(str(item.get("text", "")).strip())
+            if title and not text.startswith(title):
+                text = f"{title}\n\n{text}"
+            variant = PostVariant(
+                index=idx,
+                title=title,
+                text=text,
+                cta_hint=str(item.get("cta_hint", cta_hint)),
+                risk_notes=list(item.get("risk_notes", [])) if isinstance(item.get("risk_notes", []), list) else [],
+            )
+            variant.risk_notes.extend(check_text(variant.text, configs))
+            variant.quality_score = score_variant(variant, configs)
+            variants.append(variant)
+        if len(variants) >= 1:
+            while len(variants) < 3:
+                clone = random.choice(variants)
+                variants.append(PostVariant(index=len(variants)+1, title=clone.title, text=clone.text, cta_hint=clone.cta_hint, risk_notes=clone.risk_notes[:], quality_score=clone.quality_score))
+            return variants[:3]
+    except Exception as exc:
+        fallback = _fallback_variants(ranked, configs)
+        for item in fallback:
+            item.risk_notes.append(f"OpenAI fallback: {exc}")
+        return fallback
+    return _fallback_variants(ranked, configs)
