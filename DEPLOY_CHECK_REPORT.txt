@@ -1,7 +1,7 @@
-OK: структура соответствует ТЗ
-OK: requirements.txt чистый
-OK: мусора нет
-OK: JSON читаются
-OK: src/*.py компилируются
-OK: старых шаблонных фраз в runtime-коде нет
-OK: проект прошёл проверку
+FINAL AI NEWSROOM v3.1 HOTFIX
+OK: source media parsing enabled
+OK: flight_deal offer-card enabled instead of random irrelevant photo
+OK: direct source-offer button added for offers
+OK: Aviasales deeplink attempt added when route/date is recognized
+OK: stricter prompt for concrete flight/tour posts
+OK: old generic phrases penalized
