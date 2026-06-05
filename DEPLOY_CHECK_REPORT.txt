@@ -1,7 +1,25 @@
-FINAL AI NEWSROOM v3.1 HOTFIX
-OK: source media parsing enabled
-OK: flight_deal offer-card enabled instead of random irrelevant photo
-OK: direct source-offer button added for offers
-OK: Aviasales deeplink attempt added when route/date is recognized
-OK: stricter prompt for concrete flight/tour posts
-OK: old generic phrases penalized
+Проверка финального hotfix v3.2 — QUALITY_GATE_FIX
+Дата: 2026-06-05
+
+Исправлено:
+- /test больше не падает из-за мягких замечаний «мало абзацев / мало текста».
+- Мягкие замечания теперь снижают оценку, но не блокируют preview.
+- Критическими блокерами остаются только запрещённые фразы, технические внутренние фразы и дубли.
+- Генератор делает второй OpenAI-repair проход, если все варианты слабые или есть критические нарушения.
+- Для flight_deal усилены требования к фактам: маршрут, цена, дата, прямой рейс, проверка условий.
+- Quality selector сильнее награждает конкретику и штрафует общие рекламные фразы.
+
+Проверки:
+OK: структура соответствует ТЗ
+OK: requirements.txt чистый
+OK: мусора нет
+OK: JSON читаются
+OK: src/*.py компилируются
+OK: старых шаблонных фраз в runtime-коде нет
+OK: проект прошёл tests/validate_project.py
+
+Railway Start Command:
+python -m src.telegram_app
+
+Ожидаемая версия в /version:
+2026.06.05 FINAL AI NEWSROOM v3.2 QUALITY_GATE_FIX
