@@ -13,6 +13,7 @@ data/media_cache/flight_deal_fallback_card.jpg
 data/publication_log.json
 data/rejected_topics.json
 data/state.json
+docs/CHANGELOG_v3_3.md
 docs/CHECKLIST.md
 docs/MASTER_PROMPT.md
 docs/SERVICES.md
@@ -34,6 +35,7 @@ src/config_loader.py
 src/cta_engine.py
 src/dedup_engine.py
 src/editorial_planner.py
+src/editorial_polisher.py
 src/fact_checker.py
 src/media_engine.py
 src/newsroom.py

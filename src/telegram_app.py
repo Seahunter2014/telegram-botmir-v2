@@ -12,6 +12,7 @@ from src import BOT_VERSION
 from src.config_loader import load_config
 from src.newsroom import create_package
 from src.publisher import publish_to_channel, render_post
+from telegram.constants import ParseMode
 from src.state_store import load_state, remember_publication, record_skip, append_rejected, load_publication_log
 from src.scheduler import build_scheduler, set_autopost, set_schedule
 from src.ai_writer import rewrite_variant
@@ -29,11 +30,14 @@ def admin_id()->int|None:
     try: return int(ADMIN) if ADMIN else None
     except ValueError: return None
 
-async def reply(update:Update, text:str, markup:InlineKeyboardMarkup|None=None)->None:
+async def reply(update:Update, text:str, markup:InlineKeyboardMarkup|None=None, html:bool=False)->None:
+    kwargs={'reply_markup': markup, 'disable_web_page_preview': True}
+    if html:
+        kwargs['parse_mode'] = ParseMode.HTML
     if update.message:
-        await update.message.reply_text(text[:3900], reply_markup=markup, disable_web_page_preview=True)
+        await update.message.reply_text(text[:3900], **kwargs)
     elif update.callback_query and update.callback_query.message:
-        await update.callback_query.message.reply_text(text[:3900], reply_markup=markup, disable_web_page_preview=True)
+        await update.callback_query.message.reply_text(text[:3900], **kwargs)
 
 def admin_only(func):
     @wraps(func)
@@ -68,7 +72,7 @@ async def send_preview(update:Update, context:ContextTypes.DEFAULT_TYPE, package
     await reply(update, summary(package))
     for i,v in enumerate(package['variants'],1):
         q=v.get('quality',{})
-        await reply(update, f"ВАРИАНТ {i}\nОценка: {q.get('score')}\nСтиль: {v.get('style')}\n\n{render_post(v)}")
+        await reply(update, f"ВАРИАНТ {i}\nОценка: {q.get('score')}\nСтиль: {v.get('style')}\n\n{render_post(v, package['topic'])}", html=True)
     await reply(update,'Выберите действие:', variant_keyboard(package))
 
 @admin_only
@@ -99,7 +103,7 @@ async def publish_cmd(update:Update, context:ContextTypes.DEFAULT_TYPE)->None:
     package=list(drafts(context).values())[-1]; variant=package.get('best_variant') or select_best_variant(package['variants'], package['plan'], bundle(context))
     target=test_channel_id(context)
     if not target: await reply(update,'Не задан TEST_CHANNEL_ID или TELEGRAM_CHANNEL_ID.'); return
-    used=await publish_to_channel(context.bot,target,variant,package['media']); remember_publication(package,variant,'manual_publish',used); await reply(update,f'Опубликовано в {target}.')
+    used=await publish_to_channel(context.bot,target,variant,package['media'],package.get('topic')); remember_publication(package,variant,'manual_publish',used); await reply(update,f'Опубликовано в {target}.')
 
 @admin_only
 async def autopost_on_cmd(update:Update, context:ContextTypes.DEFAULT_TYPE)->None:
@@ -144,10 +148,10 @@ async def callback_handler(update:Update, context:ContextTypes.DEFAULT_TYPE)->No
     if not package: await q.message.reply_text('Пакет не найден. Выполните /test заново.'); return
     if action=='publish':
         idx=int(value); variant=package['variants'][idx]; target=channel_id(context) or test_channel_id(context)
-        used=await publish_to_channel(context.bot,target,variant,package['media']); remember_publication(package,variant,'manual_approved',used); await q.message.reply_text(f'Опубликован вариант {idx+1} в {target}.'); return
+        used=await publish_to_channel(context.bot,target,variant,package['media'],package.get('topic')); remember_publication(package,variant,'manual_approved',used); await q.message.reply_text(f'Опубликован вариант {idx+1} в {target}.'); return
     if action in {'rewrite','softer','sales'}:
         try:
-            base=package.get('best_variant') or package['variants'][0]; new=rewrite_variant(base, package['plan'], package['signal'], bundle(context), action); new['quality']=score_variant(new,package['plan'],bundle(context)); package['variants']=[new]+package['variants'][:2]; package['best_variant']=new; drafts(context)[pid]=package; await q.message.reply_text('Новый вариант:\n\n'+render_post(new)[:3600], reply_markup=variant_keyboard(package))
+            base=package.get('best_variant') or package['variants'][0]; new=rewrite_variant(base, package['plan'], package['signal'], bundle(context), action); new['quality']=score_variant(new,package['plan'],bundle(context)); package['variants']=[new]+package['variants'][:2]; package['best_variant']=new; drafts(context)[pid]=package; await q.message.reply_text('Новый вариант:\n\n'+render_post(new, package['topic'])[:3600], reply_markup=variant_keyboard(package), parse_mode=ParseMode.HTML)
         except Exception as exc: await q.message.reply_text(f'Не удалось переписать: {exc}')
         return
     if action=='reject': append_rejected({'package':pid,'signal':package.get('signal'),'plan':package.get('plan')}); drafts(context).pop(pid,None); await q.message.reply_text('Тема отклонена. Можно выполнить /test заново.'); return

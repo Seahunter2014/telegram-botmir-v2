@@ -5,6 +5,7 @@ from typing import Any
 from openai import OpenAI
 from .cta_engine import select_cta
 from .anti_template_checker import check_variant
+from .editorial_polisher import polish_variants
 
 
 def client() -> OpenAI:
@@ -92,8 +93,8 @@ def _hard_prompt(plan: dict, signal: dict, cta: dict, bundle: Any) -> str:
         _genre_hard_rules(plan, signal),
         'КРИТИЧЕСКИ ВАЖНО: источник — только инфоповод. Не копируй источник, но сохрани конкретные факты.',
         'КРИТИЧЕСКИ ВАЖНО: каждый вариант должен отличаться углом подачи, заголовком, первым абзацем и концовкой.',
-        'ФОРМАТ КАЖДОГО ВАРИАНТА: title — одна строка; text — 3–5 абзацев через \n\n; cta — 1 короткая строка или пусто.',
-        'ЗАПРЕЩЕНО: «давно хотели», «отличный момент», «рекомендуем», «комфортной и оправдает ожидания», «не терять время на поиски», запрещённый старый заход №1, запрещённый старый заход №2, «Сигнал» + «для».',
+        'ФОРМАТ КАЖДОГО ВАРИАНТА: title — одна строка с конкретикой; text — 3–4 коротких абзаца через \n\n, 650–950 знаков; cta — 1 короткая строка или пусто.',
+        'ЗАПРЕЩЕНО: слабые общие заходы, канцелярит, школьный пересказ, рекламные пустые фразы, служебные слова, англицизмы без смысла. Нужны конкретика, живой ритм и Telegram-оформление.',
         'ДАННЫЕ СИГНАЛА:', json.dumps(signal, ensure_ascii=False, indent=2),
         'РЕДАКЦИОННЫЙ ПЛАН:', json.dumps(plan, ensure_ascii=False, indent=2),
         'CTA И КНОПКИ:', json.dumps(cta, ensure_ascii=False, indent=2),
@@ -168,6 +169,9 @@ def generate_variants(plan: dict, signal: dict, bundle: Any) -> list[dict]:
         if len(repaired) == 3:
             variants = repaired
 
+    variants = polish_variants(variants, plan, signal, bundle, _call_json)
+    for v in variants:
+        v['buttons'] = cta.get('buttons', [])
     return variants[:3]
 
 

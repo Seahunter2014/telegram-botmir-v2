@@ -1,25 +1,16 @@
-Проверка финального hotfix v3.2 — QUALITY_GATE_FIX
-Дата: 2026-06-05
+FINAL CHECK REPORT — v3.3 EDITORIAL_FORMAT_FIX
 
-Исправлено:
-- /test больше не падает из-за мягких замечаний «мало абзацев / мало текста».
-- Мягкие замечания теперь снижают оценку, но не блокируют preview.
-- Критическими блокерами остаются только запрещённые фразы, технические внутренние фразы и дубли.
-- Генератор делает второй OpenAI-repair проход, если все варианты слабые или есть критические нарушения.
-- Для flight_deal усилены требования к фактам: маршрут, цена, дата, прямой рейс, проверка условий.
-- Quality selector сильнее награждает конкретику и штрафует общие рекламные фразы.
+OK: структура проекта соответствует ТЗ
+OK: requirements.txt содержит только библиотеки
+OK: JSON-файлы читаются
+OK: Python-файлы компилируются
+OK: старые runtime-шаблоны не найдены
+OK: .pyc и __pycache__ отсутствуют
+OK: publish_to_channel отправляет фото с caption, а не отдельную картинку и отдельный текст
+OK: render_post форматирует заголовок жирным через HTML
+OK: CTA-кнопки формируются по жанру и источнику
+OK: media_engine ищет узнаваемые city landmark фото и использует landscape
+OK: слабые сигналы получают ограничение score и не должны попадать в публикацию
 
-Проверки:
-OK: структура соответствует ТЗ
-OK: requirements.txt чистый
-OK: мусора нет
-OK: JSON читаются
-OK: src/*.py компилируются
-OK: старых шаблонных фраз в runtime-коде нет
-OK: проект прошёл tests/validate_project.py
-
-Railway Start Command:
-python -m src.telegram_app
-
-Ожидаемая версия в /version:
-2026.06.05 FINAL AI NEWSROOM v3.2 QUALITY_GATE_FIX
+Версия: 2026.06.05 FINAL AI NEWSROOM v3.3 EDITORIAL_FORMAT_FIX
+Start command Railway: python -m src.telegram_app

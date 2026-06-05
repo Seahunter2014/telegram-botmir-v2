@@ -12,7 +12,7 @@ async def autopost_job(application:Any, slot:str)->None:
     bundle=application.bot_data['bundle']; channel=application.bot_data.get('channel_id','')
     if not channel: record_skip('no_channel_id','Не задан TELEGRAM_CHANNEL_ID'); return
     try:
-        package=create_package(bundle, forced_slot=slot); variant=package['best_variant']; used=await publish_to_channel(application.bot,channel,variant,package['media']); remember_publication(package,variant,'autopost',used)
+        package=create_package(bundle, forced_slot=slot); variant=package['best_variant']; used=await publish_to_channel(application.bot,channel,variant,package['media'],package.get('topic')); remember_publication(package,variant,'autopost',used)
     except Exception as exc: record_skip('autopost_failed',str(exc),{'slot':slot})
 
 def build_scheduler(application:Any)->AsyncIOScheduler:
