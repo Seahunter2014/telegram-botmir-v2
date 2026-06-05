@@ -1,0 +1,54 @@
+{
+  "version": "2026.06.05 FINAL AI NEWSROOM",
+  "project_name": "Мир на ладони",
+  "timezone": "Europe/Moscow",
+  "default_post_times": [
+    "09:00",
+    "14:00",
+    "19:00"
+  ],
+  "slots": {
+    "morning": {
+      "preferred_topics": [
+        "destination_post",
+        "hidden_places",
+        "city_break",
+        "weekend_trip",
+        "beach_trip",
+        "mountain_trip",
+        "gastronomy_trip",
+        "romantic_trip",
+        "luxury_escape",
+        "viral_travel",
+        "inspiration_story"
+      ]
+    },
+    "day": {
+      "preferred_topics": [
+        "flight_deal",
+        "tour_offer",
+        "hotel_post",
+        "premium_hotel",
+        "last_minute",
+        "family_trip",
+        "event_trip",
+        "weekend_activity"
+      ]
+    },
+    "evening": {
+      "preferred_topics": [
+        "practical_travel",
+        "travel_hack",
+        "visa_or_residence",
+        "relocation",
+        "payment_abroad",
+        "airport_lounge",
+        "insurance_tip",
+        "concert_trip",
+        "discussion_post"
+      ]
+    }
+  },
+  "minimum_score": 60,
+  "autopost_minimum_variant_score": 75
+}

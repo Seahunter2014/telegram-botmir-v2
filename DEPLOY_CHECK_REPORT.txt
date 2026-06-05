@@ -1,8 +1,7 @@
-.env
-__pycache__/
-*.pyc
-.DS_Store
-media_cache/*.jpg
-media_cache/*.png
-data/state.json
-logs/*.log
+OK: структура соответствует ТЗ
+OK: requirements.txt чистый
+OK: мусора нет
+OK: JSON читаются
+OK: src/*.py компилируются
+OK: старых шаблонных фраз в runtime-коде нет
+OK: проект прошёл проверку
