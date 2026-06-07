@@ -1,51 +1,68 @@
-import logging
-from collections.abc import Callable
+from __future__ import annotations
+
+from typing import Any
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 
-log = logging.getLogger(__name__)
+from .newsroom import create_package
+from .publisher import publish_to_channel
+from .state_store import load_state, remember_publication, record_skip, save_state
 
-class NewsroomScheduler:
-    def __init__(self):
-        self.scheduler = AsyncIOScheduler(timezone="Europe/Moscow")
-        self.job_ids: list[str] = []
 
-    def start(self):
-        """
-        Start only inside an already running asyncio event loop.
-        PTB creates the loop during Application.run_polling(), so this must be
-        called from Application.post_init, not before run_polling().
-        """
-        if not self.scheduler.running:
-            self.scheduler.start()
-            log.info("Newsroom scheduler started")
+async def autopost_job(application: Any, slot: str) -> None:
+    state = load_state()
+    if not state.get("autopost_enabled"):
+        return
+    bundle = application.bot_data["bundle"]
+    channel = application.bot_data.get("channel_id", "")
+    if not channel:
+        record_skip("no_channel_id", "Не задан TELEGRAM_CHANNEL_ID")
+        return
+    try:
+        package = create_package(bundle, forced_slot=slot, require_minimum_quality=True)
+        variant = package["best_variant"]
+        used = await publish_to_channel(application.bot, channel, variant, package["media"], package["plan"], package["signal"])
+        remember_publication(package, variant, "autopost", used)
+    except Exception as exc:
+        record_skip("autopost_failed", str(exc), {"slot": slot})
 
-    def shutdown(self):
-        if self.scheduler.running:
-            self.scheduler.shutdown(wait=False)
-            log.info("Newsroom scheduler stopped")
 
-    def reschedule(self, times: list[str], callback: Callable[[], object]):
-        for job_id in list(self.job_ids):
-            try:
-                self.scheduler.remove_job(job_id)
-            except Exception:
-                pass
-        self.job_ids = []
+def build_scheduler(application: Any) -> AsyncIOScheduler:
+    old = application.bot_data.get("scheduler")
+    if old:
+        try:
+            old.shutdown(wait=False)
+        except Exception:
+            pass
+    bundle = application.bot_data["bundle"]
+    scheduler = AsyncIOScheduler(timezone=bundle.policy.get("timezone", "Europe/Moscow"))
+    times = load_state().get("post_times") or bundle.policy.get("default_post_times", ["09:00", "14:00", "19:00"])
+    slots = ["morning", "day", "evening"]
+    for index, time_value in enumerate(times):
+        try:
+            hour, minute = [int(value) for value in time_value.split(":")]
+        except Exception:
+            continue
+        scheduler.add_job(
+            autopost_job,
+            CronTrigger(hour=hour, minute=minute),
+            args=[application, slots[index] if index < 3 else "day"],
+            id=f"autopost_{index}",
+            replace_existing=True,
+        )
+    scheduler.start()
+    application.bot_data["scheduler"] = scheduler
+    return scheduler
 
-        for idx, t in enumerate(times):
-            try:
-                hour, minute = [int(x) for x in t.split(":")]
-                job = self.scheduler.add_job(
-                    callback,
-                    "cron",
-                    hour=hour,
-                    minute=minute,
-                    id=f"autopost_{idx}_{hour:02d}_{minute:02d}",
-                    replace_existing=True,
-                    misfire_grace_time=300,
-                    coalesce=True,
-                    max_instances=1,
-                )
-                self.job_ids.append(job.id)
-            except Exception as exc:
-                log.warning("bad schedule time %s: %s", t, exc)
+
+def set_autopost(enabled: bool) -> None:
+    state = load_state()
+    state["autopost_enabled"] = enabled
+    save_state(state)
+
+
+def set_schedule(times: list[str]) -> None:
+    state = load_state()
+    state["post_times"] = times
+    save_state(state)

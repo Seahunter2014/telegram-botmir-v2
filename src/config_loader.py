@@ -1,54 +1,45 @@
+from __future__ import annotations
 import json
-import os
+from dataclasses import dataclass
 from pathlib import Path
-from dotenv import load_dotenv
+from typing import Any
 
-ROOT = Path(__file__).resolve().parents[1]
-CONFIG_DIR = ROOT / "configs"
-PROMPTS_DIR = ROOT / "prompts"
-DATA_DIR = ROOT / "data"
-MEDIA_DIR = ROOT / "media_cache"
+ROOT_DIR = Path(__file__).resolve().parents[1]
 
-load_dotenv(ROOT / ".env")
+@dataclass(frozen=True)
+class ConfigBundle:
+    topics: dict[str, Any]
+    sources: dict[str, Any]
+    services: dict[str, Any]
+    link_rules: dict[str, Any]
+    forbidden: dict[str, Any]
+    policy: dict[str, Any]
+    prompts: dict[str, str]
+    root_dir: Path
 
+def load_json(path: Path) -> Any:
+    return json.loads(path.read_text(encoding='utf-8'))
 
-def read_json(name: str, default=None):
-    path = CONFIG_DIR / name
-    if not path.exists():
-        if default is not None:
-            return default
-        raise FileNotFoundError(path)
-    return json.loads(path.read_text(encoding="utf-8"))
+def load_prompts(root: Path = ROOT_DIR) -> dict[str, str]:
+    return {p.stem: p.read_text(encoding='utf-8') for p in sorted((root/'prompts').glob('*.md'))}
 
+def load_config(root: Path = ROOT_DIR) -> ConfigBundle:
+    cfg = root/'configs'
+    bundle = ConfigBundle(
+        topics=load_json(cfg/'topics.json'),
+        sources=load_json(cfg/'sources.json'),
+        services=load_json(cfg/'services.json'),
+        link_rules=load_json(cfg/'link_rules.json'),
+        forbidden=load_json(cfg/'forbidden_phrases.json'),
+        policy=load_json(cfg/'editorial_policy.json'),
+        prompts=load_prompts(root),
+        root_dir=root,
+    )
+    if not bundle.topics.get('topics') or not bundle.sources.get('sources') or not bundle.services.get('services'):
+        raise RuntimeError('Конфиги тем, источников или сервисов пустые')
+    if 'system_editor_ru' not in bundle.prompts:
+        raise RuntimeError('Не найден prompts/system_editor_ru.md')
+    return bundle
 
-def read_prompt(name: str) -> str:
-    return (PROMPTS_DIR / name).read_text(encoding="utf-8")
-
-
-def env(name: str, default: str = "") -> str:
-    return os.getenv(name, default)
-
-
-def env_int(name: str, default: int = 0) -> int:
-    value = os.getenv(name)
-    if not value:
-        return default
-    try:
-        return int(value)
-    except ValueError:
-        return default
-
-
-def env_float(name: str, default: float = 0.0) -> float:
-    value = os.getenv(name)
-    if not value:
-        return default
-    try:
-        return float(value)
-    except ValueError:
-        return default
-
-
-def ensure_dirs():
-    DATA_DIR.mkdir(exist_ok=True)
-    MEDIA_DIR.mkdir(exist_ok=True)
+def link_rule_for_topic(bundle: ConfigBundle, topic: str) -> dict[str, Any] | None:
+    return next((r for r in bundle.link_rules['rules'] if r.get('topic') == topic), None)

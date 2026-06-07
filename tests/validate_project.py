@@ -1,62 +1,55 @@
-import ast
-import json
-import re
+from __future__ import annotations
+import json, re
 from pathlib import Path
+ROOT=Path(__file__).resolve().parents[1]
 
-ROOT = Path(__file__).resolve().parents[1]
-REQUIRED = [
-    "src/telegram_app.py", "src/source_manager.py", "src/topic_guard.py", "src/topic_classifier.py",
-    "src/scoring_engine.py", "src/rotation_engine.py", "src/dedup_engine.py", "src/editorial_brief_engine.py",
-    "src/ai_writer.py", "src/quality_selector.py", "src/cta_engine.py", "src/media_engine.py", "src/publisher.py",
-    "configs/sources.json", "configs/services.json", "configs/link_rules.json", "configs/topics.json",
-    "prompts/system_editor_ru.md", "prompts/hook_engagement_engine_ru.md", "requirements.txt"
-]
-FORBIDDEN_FILES = ["draft_writer.py", "style_editor.py", "download", "download (1)"]
+def fail(m:str): print('ОШИБКА:',m); raise SystemExit(1)
+def ok(m:str): print('OK:',m)
 
-errors=[]
+def check_structure():
+    required=['src/telegram_app.py','src/source_manager.py','src/ai_writer.py','src/anti_template_checker.py','configs/topics.json','configs/sources.json','configs/services.json','configs/link_rules.json','configs/editorial_policy.json','configs/forbidden_phrases.json','prompts/system_editor_ru.md','requirements.txt','.env.example']
+    for r in required:
+        if not (ROOT/r).exists(): fail('нет файла '+r)
+    for old in ['draft_writer.py','style_editor.py']:
+        if (ROOT/old).exists() or (ROOT/'src'/old).exists(): fail('найден старый файл '+old)
+    ok('структура соответствует ТЗ')
 
-def fail(msg): errors.append(msg)
+def check_requirements():
+    text=(ROOT/'requirements.txt').read_text(encoding='utf-8')
+    if 'TELEGRAM_BOT_TOKEN' in text or 'OPENAI_API_KEY' in text: fail('в requirements.txt попали переменные')
+    lines=[x.strip() for x in text.splitlines() if x.strip()]
+    if len(lines)<5: fail('requirements.txt короткий')
+    for line in lines:
+        if ' ' in line: fail('в requirements.txt строка с пробелом: '+line)
+        if not re.match(r'^[A-Za-z0-9_.-]+([<>=!~]=?.+)?$', line): fail('некорректная зависимость: '+line)
+    ok('requirements.txt чистый')
 
-for rel in REQUIRED:
-    if not (ROOT/rel).exists(): fail(f"Нет файла: {rel}")
+def check_garbage():
+    for p in ROOT.rglob('*'):
+        if p.name in {'__pycache__','download','download (1)','download (2)'}: fail('мусор: '+str(p))
+        if p.suffix=='.pyc': fail('pyc: '+str(p))
+        if p.suffix in {'.zip','.rar','.7z'}: fail('архив внутри проекта: '+str(p))
+    ok('мусора нет')
 
-for p in ROOT.rglob("*"):
-    if p.name == "__pycache__" or p.suffix == ".pyc": fail(f"Мусор: {p}")
-    if p.name in FORBIDDEN_FILES: fail(f"Старый/мусорный файл: {p}")
+def check_json():
+    for p in list((ROOT/'configs').glob('*.json'))+list((ROOT/'data').glob('*.json')): json.loads(p.read_text(encoding='utf-8'))
+    ok('JSON читаются')
 
-req = (ROOT/"requirements.txt").read_text(encoding="utf-8")
-if "TELEGRAM_BOT_TOKEN" in req or "OPENAI_API_KEY" in req:
-    fail("requirements.txt содержит переменные или мусор")
+def check_compile():
+    for p in (ROOT/'src').glob('*.py'):
+        compile(p.read_text(encoding='utf-8'), str(p), 'exec')
+    ok('src/*.py компилируются')
 
-for py in (ROOT/"src").glob("*.py"):
-    try:
-        ast.parse(py.read_text(encoding="utf-8"))
-    except SyntaxError as e:
-        fail(f"SyntaxError {py}: {e}")
+def check_forbidden_runtime():
+    phrases=json.loads((ROOT/'configs/forbidden_phrases.json').read_text(encoding='utf-8'))['phrases']
+    for p in (ROOT/'src').glob('*.py'):
+        text=p.read_text(encoding='utf-8')
+        for phrase in phrases:
+            
+            if re.search(r'(?<![А-Яа-яЁёA-Za-z])'+re.escape(phrase)+r'(?![А-Яа-яЁёA-Za-z])', text, flags=re.IGNORECASE):
+                fail(f'запрещённая фраза в runtime-коде {p.name}: {phrase}')
+    ok('старых шаблонных фраз в runtime-коде нет')
 
-for js in (ROOT/"configs").glob("*.json"):
-    try:
-        json.loads(js.read_text(encoding="utf-8"))
-    except Exception as e:
-        fail(f"JSON error {js}: {e}")
-
-services = json.loads((ROOT/"configs/services.json").read_text(encoding="utf-8"))
-if not any(s.get("key") == "tourjin_bot" and "TourJin" in s.get("name", "") for s in services):
-    fail("В services.json нет TourJin Bot")
-
-telegram = (ROOT/"src/telegram_app.py").read_text(encoding="utf-8")
-for token in ["schedule_set", "add_channel", "remove_channel", "set_channels", "test_cmd", "text_test_handler"]:
-    if token not in telegram:
-        fail(f"В telegram_app.py нет сценария: {token}")
-
-if errors:
-    print("VALIDATION FAILED")
-    for e in errors: print("ERROR:", e)
-    raise SystemExit(1)
-print("OK: структура соответствует ТЗ")
-print("OK: requirements.txt чистый")
-print("OK: мусора нет")
-print("OK: JSON читаются")
-print("OK: src/*.py компилируются")
-print("OK: TourJin есть в services.json")
-print("OK: меню расписания/каналов/тестов присутствует")
+def main():
+    check_structure(); check_requirements(); check_garbage(); check_json(); check_compile(); check_forbidden_runtime(); ok('проект прошёл проверку')
+if __name__=='__main__': main()

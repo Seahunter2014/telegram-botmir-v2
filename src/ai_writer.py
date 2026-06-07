@@ -1,149 +1,133 @@
+from __future__ import annotations
+
 import json
+import os
 from typing import Any
 
-from .config_loader import read_prompt, read_json
-from .json_repair import extract_json
-from .models import EditorialBrief, GeneratedPost, PostVariant, Button
-from .openai_client import OpenAIClient
+from openai import OpenAI
+
+from .anti_template_checker import check_variant
+from .cta_engine import select_cta
 
 
-class AIWriter:
-    def __init__(self):
-        self.client = OpenAIClient()
-        self.system_prompt = "\n\n".join([
-            read_prompt("system_editor_ru.md"),
-            read_prompt("hook_engagement_engine_ru.md"),
-            read_prompt("writer_3_variants_ru.md"),
-            read_prompt("cta_rules_ru.md"),
-            read_prompt("fact_check_ru.md"),
-        ])
-        self.forbidden = read_json("forbidden_phrases.json", [])
+def client() -> OpenAI:
+    key = os.getenv("OPENAI_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError("OPENAI_API_KEY не задан. Шаблонный fallback запрещён.")
+    return OpenAI(api_key=key)
 
-    def generate(self, brief: EditorialBrief, mode: str = "normal") -> GeneratedPost:
-        user_payload = {
-            "task": "Создай 3 готовых варианта Telegram-поста по MASTER-ТЗ. Не пересказывай источник. Верни только JSON.",
-            "mode": mode,
-            "strict_limits": {
-                "max_total_caption_chars": 900,
-                "max_body_chars": 760,
-                "title_required": True,
-                "telegram_format": True,
-                "no_source_copy": True,
-                "no_random_cta": True,
-            },
-            "brief": self._brief_dict(brief),
-            "source_signal": {
-                "source_name": brief.signal.source_name,
-                "source_url": brief.signal.source_url,
-                "title": brief.signal.title,
-                "text": brief.signal.text,
-                "url": brief.signal.url,
-            },
-            "allowed_services": brief.allowed_services,
-            "forbidden_phrases": self.forbidden,
-        }
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
+
+def model() -> str:
+    return os.getenv("OPENAI_MODEL", "gpt-4.1-mini").strip() or "gpt-4.1-mini"
+
+
+def temp() -> float:
+    raw = os.getenv("AI_EDITOR_TEMPERATURE", "").strip() or os.getenv("OPENAI_TEMPERATURE", "0.85").strip()
+    try:
+        return float(raw)
+    except ValueError:
+        return 0.85
+
+
+def _editor_enabled() -> bool:
+    raw = os.getenv("AI_EDITOR_ENABLED", "true").strip().lower()
+    return raw not in {"0", "false", "off", "no"}
+
+
+def generate_variants(plan: dict, signal: dict, bundle: Any) -> list[dict]:
+    if not _editor_enabled():
+        raise RuntimeError("AI_EDITOR_ENABLED выключен. Генерация остановлена.")
+
+    cta = select_cta(plan, bundle)
+    direct_offer_note = (
+        "В финальном посте система сама добавит строку с прямой ссылкой на конкретный оффер, если источник содержит прямой оффер. "
+        "Твоя задача — не терять фактуру и не писать общий текст без повода."
+    )
+    prompt = "\n\n".join(
+        [
+            bundle.prompts["system_editor_ru"],
+            bundle.prompts["editorial_planner_ru"],
+            bundle.prompts["writer_3_variants_ru"],
+            bundle.prompts["anti_template_ru"],
+            direct_offer_note,
+            "ДАННЫЕ СИГНАЛА:",
+            json.dumps(signal, ensure_ascii=False, indent=2),
+            "РЕДАКЦИОННЫЙ ПЛАН:",
+            json.dumps(plan, ensure_ascii=False, indent=2),
+            "CTA:",
+            json.dumps(cta, ensure_ascii=False, indent=2),
+            (
+                'Верни строго JSON без markdown: '
+                '{"variants":[{"title":"","text":"","cta":"","style":"","score":80,"notes":[]}]} '
+                "Ровно 3 варианта. Каждый вариант должен быть законченным, живым и отличаться по подаче."
+            ),
         ]
-        raw = self.client.complete_json(messages)
-        data = extract_json(raw)
-        return self._parse_generated(data, brief)
+    )
+    response = client().chat.completions.create(
+        model=model(),
+        temperature=temp(),
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": "Ты возвращаешь только валидный JSON на русском языке."},
+            {"role": "user", "content": prompt},
+        ],
+    )
+    data = json.loads(response.choices[0].message.content or "{}")
+    variants = data.get("variants", [])
+    if not isinstance(variants, list) or len(variants) < 3:
+        raise RuntimeError("OpenAI не вернул 3 варианта поста")
 
-    def _brief_dict(self, brief: EditorialBrief) -> dict:
-        return {
-            "genre": brief.genre,
-            "slot": brief.slot,
-            "score": brief.score,
-            "route_from": brief.route_from,
-            "route_to": brief.route_to,
-            "price": brief.price,
-            "date_text": brief.date_text,
-            "editorial_angle": brief.editorial_angle,
-            "target_emotion": brief.target_emotion,
-            "warnings": brief.warnings,
-        }
-
-    @staticmethod
-    def _as_text(value: Any) -> str:
-        if value is None:
-            return ""
-        if isinstance(value, str):
-            return value.strip()
-        return str(value).strip()
-
-    @staticmethod
-    def _as_int(value: Any, default: int = 0) -> int:
-        try:
-            return int(value)
-        except (TypeError, ValueError):
-            return default
-
-    @classmethod
-    def _as_list(cls, value: Any) -> list:
-        """Normalize GPT output fields that must be lists.
-
-        OpenAI can occasionally return warnings/buttons as a string or dict even when
-        the schema asks for a list. Runtime code must never crash because of that.
-        """
-        if value is None or value == "":
-            return []
-        if isinstance(value, list):
-            return value
-        if isinstance(value, tuple):
-            return list(value)
-        if isinstance(value, dict):
-            return [value]
-        return [cls._as_text(value)]
-
-    def _parse_buttons(self, raw_buttons: Any) -> list[Button]:
-        buttons: list[Button] = []
-        for item in self._as_list(raw_buttons):
-            if isinstance(item, dict):
-                text = self._as_text(item.get("text"))
-                url = self._as_text(item.get("url"))
-                service_key = self._as_text(item.get("service_key"))
-                if text or url:
-                    buttons.append(Button(text=text, url=url, service_key=service_key))
-            elif isinstance(item, str) and item.strip():
-                # Do not create a button without URL. Keep malformed GPT text out of Telegram buttons.
-                continue
-        return buttons
-
-    def _parse_warnings(self, raw_warnings: Any) -> list[str]:
-        return [self._as_text(x) for x in self._as_list(raw_warnings) if self._as_text(x)]
-
-    def _parse_generated(self, data: dict, brief: EditorialBrief) -> GeneratedPost:
-        if not isinstance(data, dict):
-            data = {}
-
-        raw_variants = self._as_list(data.get("variants", []))
-        variants: list[PostVariant] = []
-
-        for i, item in enumerate(raw_variants, start=1):
-            if not isinstance(item, dict):
-                continue
-            variants.append(PostVariant(
-                variant_id=self._as_int(item.get("variant_id"), i) or i,
-                style=self._as_text(item.get("style")),
-                title=self._as_text(item.get("title")),
-                body=self._as_text(item.get("body")),
-                cta_text=self._as_text(item.get("cta_text")),
-                buttons=self._parse_buttons(item.get("buttons", [])),
-                score=self._as_int(item.get("score"), 0),
-                why_it_works=self._as_text(item.get("why_it_works")),
-                warnings=self._parse_warnings(item.get("warnings", [])),
-            ))
-
-        return GeneratedPost(
-            decision=self._as_text(data.get("decision", "publishable")) or "publishable",
-            reject_reason=self._as_text(data.get("reject_reason", "")),
-            genre=self._as_text(data.get("genre", brief.genre)) or brief.genre,
-            slot=self._as_text(data.get("slot", brief.slot)) or brief.slot,
-            editorial_angle=self._as_text(data.get("editorial_angle", brief.editorial_angle)) or brief.editorial_angle,
-            target_emotion=self._as_text(data.get("target_emotion", brief.target_emotion)) or brief.target_emotion,
-            media_query=self._as_text(data.get("media_query", "")),
-            media_requirements=self._as_text(data.get("media_requirements", "")),
-            variants=variants[:3],
-            best_variant_id=self._as_int(data.get("best_variant_id"), 1) or 1,
+    out: list[dict] = []
+    for item in variants[:3]:
+        out.append(
+            {
+                "title": str(item.get("title", "")).strip(),
+                "text": str(item.get("text", "")).strip(),
+                "cta": str(item.get("cta", "")).strip(),
+                "style": str(item.get("style", "")).strip(),
+                "score": int(item.get("score", 70) or 70),
+                "notes": item.get("notes", []),
+                "buttons": cta.get("buttons", []),
+            }
         )
+    return out
+
+
+def rewrite_variant(variant: dict, plan: dict, signal: dict, bundle: Any, mode: str) -> dict:
+    task = {
+        "rewrite": "Перепиши полностью, сохрани смысл и усили текст.",
+        "softer": "Сделай мягче, редакционнее и благороднее по тону.",
+        "sales": "Сделай сильнее по вовлечению и CTR, но без рекламного шума.",
+    }.get(mode, "Перепиши полностью.")
+    cta = select_cta(plan, bundle)
+    prompt = "\n\n".join(
+        [
+            bundle.prompts["system_editor_ru"],
+            bundle.prompts["anti_template_ru"],
+            task,
+            json.dumps({"variant": variant, "plan": plan, "signal": signal, "cta": cta}, ensure_ascii=False, indent=2),
+            'Верни JSON: {"title":"","text":"","cta":"","style":"","score":80,"notes":[]}',
+        ]
+    )
+    response = client().chat.completions.create(
+        model=model(),
+        temperature=temp(),
+        response_format={"type": "json_object"},
+        messages=[
+            {"role": "system", "content": "Только валидный JSON на русском."},
+            {"role": "user", "content": prompt},
+        ],
+    )
+    data = json.loads(response.choices[0].message.content or "{}")
+    data["buttons"] = cta.get("buttons", [])
+    return data
+
+
+def ensure_quality_or_raise(variants: list[dict], bundle: Any) -> None:
+    bad: list[str] = []
+    for index, variant in enumerate(variants, 1):
+        check = check_variant(variant, bundle)
+        if not check["passed"]:
+            bad.append(f"Вариант {index}: {'; '.join(check['issues'])}")
+    if len(bad) == len(variants):
+        raise RuntimeError("Все варианты забракованы: " + " | ".join(bad))

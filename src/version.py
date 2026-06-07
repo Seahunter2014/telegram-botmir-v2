@@ -1,2 +1,0 @@
-VERSION = "2026.06.07 FINAL AI NEWSROOM v5.3 GPT_OUTPUT_NORMALIZE_FIX"
-PROJECT_NAME = "Мир на ладони — AI редактор Telegram-канала"
