@@ -1,1 +1,1 @@
-BOT_VERSION = "2026.06.05 FINAL AI NEWSROOM"
+"""AI Newsroom bot package."""

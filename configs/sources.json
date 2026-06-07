@@ -1,265 +1,233 @@
-{
-  "sources": [
-    {
-      "key": "vandrouki",
-      "name": "Vandrouki",
-      "type": "telegram",
-      "role": "offers",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "telegram_public_html",
-      "endpoint": "https://t.me/s/vandroukiru",
-      "use_for": [
-        "flight_deal",
-        "weekend_trip",
-        "last_minute",
-        "destination_post"
-      ]
-    },
-    {
-      "key": "aviasales_telegram",
-      "name": "Авиасейлс Telegram",
-      "type": "telegram",
-      "role": "style_and_flights",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "telegram_public_html",
-      "endpoint": "https://t.me/s/aviasales",
-      "use_for": [
-        "flight_deal",
-        "city_break",
-        "weekend_trip",
-        "destination_post"
-      ]
-    },
-    {
-      "key": "travelata_telegram",
-      "name": "Travelata Telegram",
-      "type": "telegram",
-      "role": "tours",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "telegram_public_html",
-      "endpoint": "https://t.me/s/travelata",
-      "use_for": [
-        "tour_offer",
-        "hot_tour",
-        "seasonal_offer",
-        "beach_trip",
-        "family_trip"
-      ]
-    },
-    {
-      "key": "psgr_journal",
-      "name": "ПСЖР / Авиасейлс",
-      "type": "site",
-      "role": "style_and_signals",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "site_listing",
-      "endpoint": "https://www.aviasales.ru/psgr",
-      "use_for": [
-        "destination_post",
-        "flight_deal",
-        "weekend_trip",
-        "city_break"
-      ]
-    },
-    {
-      "key": "travelask",
-      "name": "TravelAsk",
-      "type": "site",
-      "role": "news_and_commercial_signals",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "site_listing",
-      "endpoint": "https://travelask.ru/",
-      "use_for": [
-        "destination_post",
-        "hidden_places",
-        "practical_travel",
-        "viral_travel"
-      ]
-    },
-    {
-      "key": "tripster_journal",
-      "name": "Журнал Трипстера",
-      "type": "site",
-      "role": "inspiration_and_structure",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "site_listing",
-      "endpoint": "https://experience.tripster.ru/journal/",
-      "use_for": [
-        "city_break",
-        "excursion_post",
-        "hidden_places",
-        "gastronomy_trip",
-        "destination_post"
-      ]
-    },
-    {
-      "key": "yandex_travel_journal",
-      "name": "Журнал Яндекс Путешествий",
-      "type": "site",
-      "role": "regions_and_events",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "site_listing",
-      "endpoint": "https://travel.yandex.ru/journal/",
-      "use_for": [
-        "destination_post",
-        "practical_travel",
-        "family_trip",
-        "weekend_trip"
-      ]
-    },
-    {
-      "key": "gorbilet_events",
-      "name": "Горбилет",
-      "type": "site",
-      "role": "events",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "single_article",
-      "endpoint": "https://gorbilet.ru/blog/music/kontserty-mirovyh-zvezd-v-2026",
-      "use_for": [
-        "event_trip",
-        "concert_trip",
-        "weekend_activity"
-      ]
-    },
-    {
-      "key": "psgr_concerts",
-      "name": "ПСЖР: концерты мировых звёзд",
-      "type": "site",
-      "role": "events_and_routes",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "single_article",
-      "endpoint": "https://www.aviasales.ru/psgr/article/konczerty-mirovyh-zvyozd",
-      "use_for": [
-        "concert_trip",
-        "event_trip",
-        "city_break"
-      ]
-    },
-    {
-      "key": "imigrata",
-      "name": "IMIGRATA",
-      "type": "site",
-      "role": "visa_and_residence",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "site_listing",
-      "endpoint": "https://imigrata.com/ru/",
-      "use_for": [
-        "visa_or_residence",
-        "relocation",
-        "digital_nomad",
-        "payment_abroad"
-      ]
-    },
-    {
-      "key": "relocate_easy",
-      "name": "relocate_easy",
-      "type": "telegram",
-      "role": "relocation_signals",
-      "priority": "B",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "telegram_public_html",
-      "endpoint": "https://t.me/s/relocate_easy",
-      "use_for": [
-        "relocation",
-        "visa_or_residence"
-      ]
-    },
-    {
-      "key": "ekspat_info",
-      "name": "ekspat_info",
-      "type": "telegram",
-      "role": "relocation_signals",
-      "priority": "B",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "telegram_public_html",
-      "endpoint": "https://t.me/s/ekspat_info",
-      "use_for": [
-        "relocation",
-        "digital_nomad",
-        "payment_abroad"
-      ]
-    },
-    {
-      "key": "puteshe",
-      "name": "puteshe",
-      "type": "telegram",
-      "role": "beauty_and_inspiration",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "telegram_public_html",
-      "endpoint": "https://t.me/s/puteshe",
-      "use_for": [
-        "destination_post",
-        "hidden_places",
-        "weekend_trip",
-        "inspiration_story"
-      ]
-    },
-    {
-      "key": "ptuxon",
-      "name": "ptuxon",
-      "type": "youtube",
-      "role": "style_reference",
-      "priority": "B",
-      "mode": "manual",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "manual_reference",
-      "endpoint": "http://youtube.com/c/ptuxon",
-      "use_for": []
-    },
-    {
-      "key": "trip_activities",
-      "name": "Trip.com Activities",
-      "type": "site",
-      "role": "activities",
-      "priority": "A",
-      "mode": "auto",
-      "enabled": true,
-      "language": "ru",
-      "collection_method": "single_article",
-      "endpoint": "https://www.trip.com/t/g39kF7nZrU2",
-      "use_for": [
-        "activities_post",
-        "weekend_activity",
-        "event_trip"
-      ]
-    }
-  ]
-}
+[
+  {
+    "key": "vandrouki",
+    "name": "Vandrouki",
+    "type": "telegram",
+    "url": "https://t.me/s/vandroukiru",
+    "role": "offers",
+    "priority": "A",
+    "mode": "auto",
+    "method": "telegram_public_html",
+    "genres": [
+      "flight_deal",
+      "weekend_trip",
+      "last_minute",
+      "destination_post"
+    ]
+  },
+  {
+    "key": "aviasales_telegram",
+    "name": "Авиасейлс Telegram",
+    "type": "telegram",
+    "url": "https://t.me/s/aviasales",
+    "role": "style_and_flights",
+    "priority": "A",
+    "mode": "auto",
+    "method": "telegram_public_html",
+    "genres": [
+      "flight_deal",
+      "city_break",
+      "weekend_trip",
+      "destination_post"
+    ]
+  },
+  {
+    "key": "travelata_telegram",
+    "name": "Travelata Telegram",
+    "type": "telegram",
+    "url": "https://t.me/s/travelata",
+    "role": "tours",
+    "priority": "A",
+    "mode": "auto",
+    "method": "telegram_public_html",
+    "genres": [
+      "tour_offer",
+      "hot_tour",
+      "seasonal_offer",
+      "beach_trip",
+      "family_trip"
+    ]
+  },
+  {
+    "key": "psgr_journal",
+    "name": "ПСЖР / Авиасейлс",
+    "type": "site",
+    "url": "https://www.aviasales.ru/psgr",
+    "role": "travel_ideas",
+    "priority": "A",
+    "mode": "auto",
+    "method": "site_listing",
+    "genres": [
+      "destination_post",
+      "flight_deal",
+      "weekend_trip",
+      "city_break"
+    ]
+  },
+  {
+    "key": "travelask",
+    "name": "TravelAsk",
+    "type": "site",
+    "url": "https://travelask.ru/",
+    "role": "travel_articles",
+    "priority": "A",
+    "mode": "auto",
+    "method": "site_listing",
+    "genres": [
+      "destination_post",
+      "hidden_places",
+      "practical_travel",
+      "viral_travel"
+    ]
+  },
+  {
+    "key": "tripster_journal",
+    "name": "Журнал Трипстера",
+    "type": "site",
+    "url": "https://experience.tripster.ru/journal/",
+    "role": "routes_excursions",
+    "priority": "A",
+    "mode": "auto",
+    "method": "site_listing",
+    "genres": [
+      "city_break",
+      "excursion_post",
+      "hidden_places",
+      "gastronomy_trip",
+      "destination_post"
+    ]
+  },
+  {
+    "key": "yandex_travel_journal",
+    "name": "Журнал Яндекс Путешествий",
+    "type": "site",
+    "url": "https://travel.yandex.ru/journal/",
+    "role": "guides",
+    "priority": "A",
+    "mode": "auto",
+    "method": "site_listing",
+    "genres": [
+      "destination_post",
+      "practical_travel",
+      "family_trip",
+      "weekend_trip"
+    ]
+  },
+  {
+    "key": "gorbilet_events",
+    "name": "Горбилет",
+    "type": "site",
+    "url": "https://gorbilet.ru/blog/music/kontserty-mirovyh-zvezd-v-2026",
+    "role": "events",
+    "priority": "A",
+    "mode": "auto",
+    "method": "site_listing",
+    "genres": [
+      "event_trip",
+      "concert_trip",
+      "weekend_activity"
+    ]
+  },
+  {
+    "key": "psgr_concerts",
+    "name": "ПСЖР: концерты мировых звёзд",
+    "type": "site",
+    "url": "https://www.aviasales.ru/psgr/article/konczerty-mirovyh-zvyozd",
+    "role": "events_routes",
+    "priority": "A",
+    "mode": "auto",
+    "method": "site_listing",
+    "genres": [
+      "concert_trip",
+      "event_trip",
+      "city_break"
+    ]
+  },
+  {
+    "key": "imigrata",
+    "name": "IMIGRATA",
+    "type": "site",
+    "url": "https://imigrata.com/ru/",
+    "role": "visa_residence",
+    "priority": "A",
+    "mode": "auto",
+    "method": "site_listing",
+    "genres": [
+      "visa_or_residence",
+      "relocation",
+      "payment_abroad"
+    ]
+  },
+  {
+    "key": "relocate_easy",
+    "name": "relocate_easy",
+    "type": "telegram",
+    "url": "https://t.me/s/relocate_easy",
+    "role": "relocation_signals",
+    "priority": "B",
+    "mode": "auto",
+    "method": "telegram_public_html",
+    "genres": [
+      "relocation",
+      "visa_or_residence"
+    ]
+  },
+  {
+    "key": "ekspat_info",
+    "name": "ekspat_info",
+    "type": "telegram",
+    "url": "https://t.me/s/ekspat_info",
+    "role": "relocation_longstay",
+    "priority": "B",
+    "mode": "auto",
+    "method": "telegram_public_html",
+    "genres": [
+      "relocation",
+      "payment_abroad"
+    ]
+  },
+  {
+    "key": "puteshe",
+    "name": "puteshe",
+    "type": "telegram",
+    "url": "https://t.me/s/puteshe",
+    "role": "beauty_and_inspiration",
+    "priority": "A",
+    "mode": "auto",
+    "method": "telegram_public_html",
+    "genres": [
+      "destination_post",
+      "hidden_places",
+      "weekend_trip",
+      "inspiration_story"
+    ]
+  },
+  {
+    "key": "ptuxon",
+    "name": "ptuxon",
+    "type": "youtube",
+    "url": "http://youtube.com/c/ptuxon",
+    "role": "style_reference",
+    "priority": "B",
+    "mode": "manual",
+    "method": "manual_reference",
+    "genres": [
+      "style_reference"
+    ]
+  },
+  {
+    "key": "trip_activities",
+    "name": "Trip.com Activities",
+    "type": "site",
+    "url": "https://www.trip.com/t/g39kF7nZrU2",
+    "role": "activities",
+    "priority": "A",
+    "mode": "auto",
+    "method": "site_listing",
+    "genres": [
+      "activities_post",
+      "weekend_activity",
+      "event_trip"
+    ]
+  }
+]

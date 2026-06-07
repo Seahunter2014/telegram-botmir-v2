@@ -1,33 +1,23 @@
-from __future__ import annotations
+from .config_loader import read_json
 
-import re
-from typing import Any
+class AntiTemplateChecker:
+    def __init__(self):
+        self.forbidden = [x.lower() for x in read_json("forbidden_phrases.json", [])]
+        self.internal_markers = ["сигнал для", "genre:", "slot:", "editorial_angle", "вариант поста", "как ai"]
 
-from .dedup_engine import is_duplicate_variant
-
-
-def check_variant(variant: dict, bundle: Any) -> dict:
-    text = f"{variant.get('title', '')}\n{variant.get('text', '')}\n{variant.get('cta', '')}"
-    issues: list[str] = []
-    for phrase in bundle.forbidden.get("phrases", []):
-        if phrase.lower() in text.lower():
-            issues.append("Запрещённая фраза обнаружена")
-    if ("сигнал" + " для") in text.lower():
-        issues.append("Внутренняя техническая фраза")
-    paragraphs = [part.strip() for part in variant.get("text", "").split("\n") if part.strip()]
-    if len(paragraphs) < 3:
-        issues.append("Мало абзацев")
-    if len(variant.get("text", "")) < 420:
-        issues.append("Мало текста и конкретики")
-    if len(variant.get("title", "")) < 18:
-        issues.append("Слабый заголовок")
-    starts: list[str] = []
-    for paragraph in paragraphs:
-        words = re.findall(r"[A-Za-zА-Яа-яЁё0-9]+", paragraph.lower())
-        starts.append(words[0] if words else "")
-    if len(starts) >= 3 and len(set(starts)) < len(starts):
-        issues.append("Повторяются начала абзацев")
-    is_duplicate, reason = is_duplicate_variant(text)
-    if is_duplicate:
-        issues.append(reason)
-    return {"passed": not issues, "issues": issues, "quality_score": max(0, 100 - len(issues) * 18)}
+    def check(self, title: str, body: str, cta: str = "") -> tuple[bool, list[str]]:
+        text = f"{title}\n{body}\n{cta}".lower()
+        errors = []
+        for phrase in self.forbidden:
+            if phrase and phrase in text:
+                errors.append(f"Запрещённая фраза: {phrase}")
+        for marker in self.internal_markers:
+            if marker in text:
+                errors.append(f"Внутренний технический маркер: {marker}")
+        if len(title.strip()) < 18:
+            errors.append("Слишком слабый/короткий заголовок")
+        if len(body.strip()) < 180:
+            errors.append("Тело поста слишком короткое для редакционного поста")
+        if "билет" in text and any(w in text for w in ["вебинар", "эфир", "вакансия"]):
+            errors.append("Билеты вставлены в не travel-контекст")
+        return (len(errors) == 0), errors
