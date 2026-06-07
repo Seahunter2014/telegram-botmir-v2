@@ -1,13 +1,24 @@
 from .anti_template_checker import AntiTemplateChecker
 from .models import GeneratedPost, PostVariant
 
+
+def _normalize_warnings(value) -> list[str]:
+    if value is None or value == "":
+        return []
+    if isinstance(value, list):
+        return [str(x) for x in value if str(x).strip()]
+    if isinstance(value, tuple):
+        return [str(x) for x in value if str(x).strip()]
+    return [str(value)]
+
+
 class QualitySelector:
     def __init__(self):
         self.checker = AntiTemplateChecker()
 
     def score_variant(self, variant: PostVariant) -> tuple[int, list[str]]:
         score = int(variant.score or 0)
-        notes = []
+        notes: list[str] = []
         ok, errors = self.checker.check(variant.title, variant.body, variant.cta_text)
         if not ok:
             notes.extend(errors)
@@ -18,7 +29,8 @@ class QualitySelector:
             score += 3
         if len(variant.body) > 260:
             score += 8
-        if "?" in variant.body or "сохран" in variant.body.lower() or "перешл" in variant.body.lower():
+        body_lower = variant.body.lower()
+        if "?" in variant.body or "сохран" in body_lower or "перешл" in body_lower:
             score += 7
         return max(0, min(100, score)), notes
 
@@ -27,10 +39,11 @@ class QualitySelector:
             return None, [post.reject_reason or "GPT не вернул варианты"]
         best = None
         best_score = -1
-        all_notes = []
+        all_notes: list[str] = []
         for variant in post.variants:
             s, notes = self.score_variant(variant)
             variant.score = s
+            variant.warnings = _normalize_warnings(variant.warnings)
             variant.warnings.extend(notes)
             if notes:
                 all_notes.extend([f"Вариант {variant.variant_id}: {n}" for n in notes])

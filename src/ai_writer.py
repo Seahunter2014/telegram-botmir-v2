@@ -1,8 +1,11 @@
 import json
+from typing import Any
+
 from .config_loader import read_prompt, read_json
 from .json_repair import extract_json
 from .models import EditorialBrief, GeneratedPost, PostVariant, Button
 from .openai_client import OpenAIClient
+
 
 class AIWriter:
     def __init__(self):
@@ -26,7 +29,7 @@ class AIWriter:
                 "title_required": True,
                 "telegram_format": True,
                 "no_source_copy": True,
-                "no_random_cta": True
+                "no_random_cta": True,
             },
             "brief": self._brief_dict(brief),
             "source_signal": {
@@ -41,7 +44,7 @@ class AIWriter:
         }
         messages = [
             {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)}
+            {"role": "user", "content": json.dumps(user_payload, ensure_ascii=False)},
         ]
         raw = self.client.complete_json(messages)
         data = extract_json(raw)
@@ -61,30 +64,86 @@ class AIWriter:
             "warnings": brief.warnings,
         }
 
+    @staticmethod
+    def _as_text(value: Any) -> str:
+        if value is None:
+            return ""
+        if isinstance(value, str):
+            return value.strip()
+        return str(value).strip()
+
+    @staticmethod
+    def _as_int(value: Any, default: int = 0) -> int:
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return default
+
+    @classmethod
+    def _as_list(cls, value: Any) -> list:
+        """Normalize GPT output fields that must be lists.
+
+        OpenAI can occasionally return warnings/buttons as a string or dict even when
+        the schema asks for a list. Runtime code must never crash because of that.
+        """
+        if value is None or value == "":
+            return []
+        if isinstance(value, list):
+            return value
+        if isinstance(value, tuple):
+            return list(value)
+        if isinstance(value, dict):
+            return [value]
+        return [cls._as_text(value)]
+
+    def _parse_buttons(self, raw_buttons: Any) -> list[Button]:
+        buttons: list[Button] = []
+        for item in self._as_list(raw_buttons):
+            if isinstance(item, dict):
+                text = self._as_text(item.get("text"))
+                url = self._as_text(item.get("url"))
+                service_key = self._as_text(item.get("service_key"))
+                if text or url:
+                    buttons.append(Button(text=text, url=url, service_key=service_key))
+            elif isinstance(item, str) and item.strip():
+                # Do not create a button without URL. Keep malformed GPT text out of Telegram buttons.
+                continue
+        return buttons
+
+    def _parse_warnings(self, raw_warnings: Any) -> list[str]:
+        return [self._as_text(x) for x in self._as_list(raw_warnings) if self._as_text(x)]
+
     def _parse_generated(self, data: dict, brief: EditorialBrief) -> GeneratedPost:
-        variants = []
-        for i, item in enumerate(data.get("variants", []), start=1):
-            buttons = [Button(text=b.get("text", ""), url=b.get("url", ""), service_key=b.get("service_key", "")) for b in item.get("buttons", [])]
+        if not isinstance(data, dict):
+            data = {}
+
+        raw_variants = self._as_list(data.get("variants", []))
+        variants: list[PostVariant] = []
+
+        for i, item in enumerate(raw_variants, start=1):
+            if not isinstance(item, dict):
+                continue
             variants.append(PostVariant(
-                variant_id=int(item.get("variant_id") or i),
-                style=item.get("style", ""),
-                title=item.get("title", "").strip(),
-                body=item.get("body", "").strip(),
-                cta_text=item.get("cta_text", "").strip(),
-                buttons=buttons,
-                score=int(item.get("score") or 0),
-                why_it_works=item.get("why_it_works", ""),
-                warnings=item.get("warnings", []) or []
+                variant_id=self._as_int(item.get("variant_id"), i) or i,
+                style=self._as_text(item.get("style")),
+                title=self._as_text(item.get("title")),
+                body=self._as_text(item.get("body")),
+                cta_text=self._as_text(item.get("cta_text")),
+                buttons=self._parse_buttons(item.get("buttons", [])),
+                score=self._as_int(item.get("score"), 0),
+                why_it_works=self._as_text(item.get("why_it_works")),
+                warnings=self._parse_warnings(item.get("warnings", [])),
             ))
+
         return GeneratedPost(
-            decision=data.get("decision", "publishable"),
-            reject_reason=data.get("reject_reason", ""),
-            genre=data.get("genre", brief.genre),
-            slot=data.get("slot", brief.slot),
-            editorial_angle=data.get("editorial_angle", brief.editorial_angle),
-            target_emotion=data.get("target_emotion", brief.target_emotion),
-            media_query=data.get("media_query", ""),
-            media_requirements=data.get("media_requirements", ""),
+            decision=self._as_text(data.get("decision", "publishable")) or "publishable",
+            reject_reason=self._as_text(data.get("reject_reason", "")),
+            genre=self._as_text(data.get("genre", brief.genre)) or brief.genre,
+            slot=self._as_text(data.get("slot", brief.slot)) or brief.slot,
+            editorial_angle=self._as_text(data.get("editorial_angle", brief.editorial_angle)) or brief.editorial_angle,
+            target_emotion=self._as_text(data.get("target_emotion", brief.target_emotion)) or brief.target_emotion,
+            media_query=self._as_text(data.get("media_query", "")),
+            media_requirements=self._as_text(data.get("media_requirements", "")),
             variants=variants[:3],
-            best_variant_id=int(data.get("best_variant_id") or 1),
+            best_variant_id=self._as_int(data.get("best_variant_id"), 1) or 1,
         )

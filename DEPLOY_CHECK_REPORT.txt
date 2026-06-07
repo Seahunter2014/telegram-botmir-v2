@@ -1,3 +1,16 @@
+DEPLOY CHECK REPORT — v5.3 GPT_OUTPUT_NORMALIZE_FIX
+
+OK: requirements.txt чистый
+OK: JSON configs читаются
+OK: src/*.py компилируются
+OK: tests/validate_project.py проходит
+OK: TourJin есть в services.json
+OK: flight_deal не ведёт на чужой Telegram
+OK: media для flight_deal создаётся карточкой оффера
+OK: исправлена ошибка 'str' object has no attribute 'extend'
+OK: AIWriter нормализует warnings/buttons/variants
+OK: QualitySelector больше не падает при warnings=str
+
 DEPLOY CHECK REPORT — v5.2 LINK_MEDIA_FLIGHT_FIX
 Date: 2026-06-07
 
