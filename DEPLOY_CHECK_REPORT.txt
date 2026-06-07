@@ -1,20 +1,47 @@
-DEPLOY CHECK REPORT — v5.1 SCHEDULER_EVENT_LOOP_FIX
+DEPLOY CHECK REPORT — v5.2 LINK_MEDIA_FLIGHT_FIX
+Date: 2026-06-07
 
-Проверка выполнена:
-OK: структура соответствует ТЗ
-OK: requirements.txt чистый
-OK: мусора нет
-OK: JSON читаются
-OK: src/*.py компилируются
-OK: TourJin есть в services.json
-OK: меню расписания/каналов/тестов присутствует
-OK: ошибка RuntimeError: no running event loop исправлена
+Status: PASSED
 
-Что исправлено в v5.1:
-- APScheduler больше не стартует до создания asyncio event loop.
-- scheduler.start() перенесён в post_init приложения python-telegram-bot.
-- автопостинг теперь планируется после запуска Telegram Application.
-- при остановке приложения scheduler корректно выключается через post_shutdown.
+Changed / fixed files:
+1. src/cta_engine.py
+   - flight_deal no longer links to чужие Telegram-каналы.
+   - first flight_deal button goes to Aviasales route search.
+   - Telegram links are blocked except TourJin bot.
+2. src/media_engine.py
+   - flight_deal always gets an offer card.
+   - Telegram source preview images are not trusted by default.
+   - fallback media is a branded card, not blank image.
+3. src/signal_extractor.py
+   - improved route extraction.
+   - supports “Нижний — Минск” and “из Нижнего Новгорода в Минск”.
+4. configs/cities_iata.json
+   - includes GOJ for Нижний Новгород and MSQ for Минск.
+5. configs/city_aliases.json
+   - includes aliases for Нижний / Нижнего Новгорода / Минск.
 
-Start command для Railway:
-python -m src.telegram_app
+Additional file updated:
+- src/version.py — version changed to v5.2 for /version check.
+
+Runtime logic test:
+Signal: Нижний — Минск, старт 5 июля, билеты от 7000 рублей.
+Extracted:
+- route_from: Нижний Новгород
+- route_to: Минск
+- price: 7000 ₽
+- date_text: 5 июля
+Generated Aviasales URL:
+- https://www.aviasales.ru/search/GOJ0507MSQ?marker=98526
+Media:
+- generated local offer card in media_cache, not Telegram preview.
+
+Validation:
+OK: requirements.txt clean
+OK: JSON configs readable
+OK: src/*.py compiles
+OK: tests/validate_project.py passed
+OK: no __pycache__
+OK: no *.pyc
+OK: no download garbage
+OK: TourJin exists in services.json
+OK: menu schedule/channel/test commands present
