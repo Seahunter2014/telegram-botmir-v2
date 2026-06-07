@@ -100,7 +100,7 @@ async def schedule_set(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.effective_message.reply_text("Не понял расписание. Пример: /schedule_set 09:00,14:00,19:00")
         return
     state.set("schedule_times", good)
-    scheduler.reschedule(good, lambda: asyncio.create_task(run_autopost(context.application.bot)))
+    scheduler.reschedule(good, lambda: context.application.create_task(run_autopost(context.application.bot)))
     await update.effective_message.reply_text(f"Готово. Новое расписание: {', '.join(good)}")
 
 async def channels_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -147,7 +147,7 @@ async def set_channels(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def autopost_on(update: Update, context: ContextTypes.DEFAULT_TYPE):
     state.set("autopost_enabled", True)
-    scheduler.reschedule(state.get("schedule_times", []), lambda: asyncio.create_task(run_autopost(context.application.bot)))
+    scheduler.reschedule(state.get("schedule_times", []), lambda: context.application.create_task(run_autopost(context.application.bot)))
     await update.effective_message.reply_text("Автопостинг включён.")
 
 async def autopost_off(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -377,14 +377,26 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> N
     log.exception("Telegram error", exc_info=context.error)
 
 
+async def post_init(app: Application):
+    # APScheduler must be started only after PTB has created the running event loop.
+    scheduler.start()
+    scheduler.reschedule(
+        state.get("schedule_times", []),
+        lambda: app.create_task(run_autopost(app.bot))
+    )
+    log.info("Autopost schedule loaded: %s", ", ".join(state.get("schedule_times", [])))
+
+
+async def post_shutdown(app: Application):
+    scheduler.shutdown()
+
+
 def main():
     ensure_dirs()
     token = env("TELEGRAM_BOT_TOKEN")
     if not token:
         raise RuntimeError("TELEGRAM_BOT_TOKEN не задан")
-    app = Application.builder().token(token).build()
-    scheduler.start()
-    scheduler.reschedule(state.get("schedule_times", []), lambda: asyncio.create_task(run_autopost(app.bot)))
+    app = Application.builder().token(token).post_init(post_init).post_shutdown(post_shutdown).build()
     app.add_handler(CommandHandler(["start", "menu"], start))
     app.add_handler(CommandHandler("version", version))
     app.add_handler(CommandHandler("status", status))

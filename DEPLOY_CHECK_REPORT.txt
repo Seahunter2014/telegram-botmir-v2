@@ -1,3 +1,6 @@
+DEPLOY CHECK REPORT — v5.1 SCHEDULER_EVENT_LOOP_FIX
+
+Проверка выполнена:
 OK: структура соответствует ТЗ
 OK: requirements.txt чистый
 OK: мусора нет
@@ -5,3 +8,13 @@ OK: JSON читаются
 OK: src/*.py компилируются
 OK: TourJin есть в services.json
 OK: меню расписания/каналов/тестов присутствует
+OK: ошибка RuntimeError: no running event loop исправлена
+
+Что исправлено в v5.1:
+- APScheduler больше не стартует до создания asyncio event loop.
+- scheduler.start() перенесён в post_init приложения python-telegram-bot.
+- автопостинг теперь планируется после запуска Telegram Application.
+- при остановке приложения scheduler корректно выключается через post_shutdown.
+
+Start command для Railway:
+python -m src.telegram_app
