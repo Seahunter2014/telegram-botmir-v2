@@ -1,57 +1,87 @@
 from __future__ import annotations
+
+import json
 from typing import Any
+
 from .anti_template_checker import check_variant
 from .fact_checker import fact_check_variant
-
-BAD_GENERIC = [
-    'давно хотели', 'отличный момент', 'рекомендуем', 'заранее — тогда',
-    'комфортной и оправдает ожидания', 'не терять время на поиски',
-    'такие предложения быстро меняются', 'подходящий вариант',
-]
 
 
 def score_variant(variant: dict, plan: dict, bundle: Any) -> dict:
     anti = check_variant(variant, bundle)
     fact = fact_check_variant(variant, plan)
-    score = int(variant.get('score') or 70)
-    score -= len(anti.get('hard_issues', [])) * 45
-    score -= len(anti.get('soft_issues', [])) * 7
-    score -= len(fact.get('warnings', [])) * 4
-    full = (variant.get('title', '') + ' ' + variant.get('text', '') + ' ' + variant.get('cta', '')).lower()
-    text = variant.get('text', '')
-    paras = [p for p in text.split('\n') if p.strip()]
-
-    if len(text) >= 450:
-        score += 8
-    if len(paras) >= 3:
-        score += 8
-    if '?' in full:
-        score += 2
-    if any(w in full for w in ['сохран', 'перешл', 'проверить', 'выбрали']):
+    score = int(variant.get("score") or 70)
+    score -= len(anti["issues"]) * 12 + len(fact["warnings"]) * 5
+    text = variant.get("text", "").lower()
+    if len(text) > 600:
+        score += 5
+    if "?" in text:
         score += 3
+    if any(word in text for word in ["сохран", "перей", "проверить", "выбрали", "открыть"]):
+        score += 4
+    return {"score": max(0, min(100, score)), "anti_template": anti, "fact_check": fact}
 
-    if plan.get('topic') == 'flight_deal':
-        sig = plan.get('signal') or {}
-        for key, bonus, penalty in [('price', 12, 15), ('route_to', 8, 12), ('route_from', 8, 12)]:
-            val = str(sig.get(key, '')).lower().strip()
-            if val and val in full:
-                score += bonus
-            elif val:
-                score -= penalty
-        if 'прям' in full and 'прям' in str(sig.get('text', '')).lower():
-            score += 5
 
-    for phrase in BAD_GENERIC:
-        if phrase in full:
-            score -= 18
-    return {'score': max(0, min(100, score)), 'anti_template': anti, 'fact_check': fact}
+def _heuristic_best(variants: list[dict], plan: dict, bundle: Any) -> dict:
+    scored: list[dict] = []
+    for index, variant in enumerate(variants, 1):
+        item = {**variant, "index": index, "quality": score_variant(variant, plan, bundle)}
+        scored.append(item)
+    return sorted(scored, key=lambda value: value["quality"]["score"], reverse=True)[0]
+
+
+def _ai_best(variants: list[dict], plan: dict, bundle: Any) -> dict | None:
+    try:
+        from .ai_writer import client, model, temp
+    except Exception:
+        return None
+    if "quality_selector_ru" not in bundle.prompts:
+        return None
+
+    payload = {
+        "plan": plan,
+        "variants": [
+            {
+                "index": index,
+                "title": variant.get("title", ""),
+                "text": variant.get("text", ""),
+                "cta": variant.get("cta", ""),
+                "style": variant.get("style", ""),
+                "heuristic_score": score_variant(variant, plan, bundle)["score"],
+            }
+            for index, variant in enumerate(variants, 1)
+        ],
+    }
+    prompt = "\n\n".join(
+        [
+            bundle.prompts["quality_selector_ru"],
+            "Выбери лучший вариант и верни только JSON без markdown.",
+            'Формат: {"best_index":1,"reason":"","scores":[{"index":1,"score":82},{"index":2,"score":77},{"index":3,"score":74}]}',
+            json.dumps(payload, ensure_ascii=False, indent=2),
+        ]
+    )
+    try:
+        response = client().chat.completions.create(
+            model=model(),
+            temperature=min(temp(), 0.4),
+            response_format={"type": "json_object"},
+            messages=[
+                {"role": "system", "content": "Ты оцениваешь редакционные варианты и возвращаешь только валидный JSON."},
+                {"role": "user", "content": prompt},
+            ],
+        )
+        data = json.loads(response.choices[0].message.content or "{}")
+        best_index = int(data.get("best_index", 0))
+        if best_index < 1 or best_index > len(variants):
+            return None
+        selected = {**variants[best_index - 1], "index": best_index}
+        selected["quality"] = score_variant(selected, plan, bundle)
+        selected["quality"]["ai_reason"] = str(data.get("reason", "")).strip()
+        selected["quality"]["ai_scores"] = data.get("scores", [])
+        return selected
+    except Exception:
+        return None
 
 
 def select_best_variant(variants: list[dict], plan: dict, bundle: Any) -> dict:
-    scored = []
-    for i, v in enumerate(variants, 1):
-        q = v.get('quality') or score_variant(v, plan, bundle)
-        v = {**v, 'index': i, 'quality': q}
-        scored.append(v)
-    # Критические нарушения в конец списка.
-    return sorted(scored, key=lambda x: (not x['quality']['anti_template'].get('hard_issues'), x['quality']['score']), reverse=True)[0]
+    return _ai_best(variants, plan, bundle) or _heuristic_best(variants, plan, bundle)

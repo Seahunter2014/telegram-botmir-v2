@@ -1,86 +1,137 @@
 from __future__ import annotations
+
 import re
 from datetime import datetime, timezone
 from typing import Any
 
-# Небольшой словарь нужен не для "угадывания всего мира", а чтобы не делать слепые ссылки.
-# Если город не распознан, бот оставляет кнопку на источник и партнёрскую общую ссылку.
-CITY_DATA = {
-    'москва': ('Москва','Россия','MOW'), 'москву': ('Москва','Россия','MOW'), 'москвы': ('Москва','Россия','MOW'), 'москве': ('Москва','Россия','MOW'),
-    'пермь': ('Пермь','Россия','PEE'), 'перми': ('Пермь','Россия','PEE'), 'пермью': ('Пермь','Россия','PEE'),
-    'сочи': ('Сочи','Россия','AER'), 'адлер': ('Сочи','Россия','AER'),
-    'краснодар': ('Краснодар','Россия','KRR'), 'краснодара': ('Краснодар','Россия','KRR'),
-    'санкт-петербург': ('Санкт-Петербург','Россия','LED'), 'петербург': ('Санкт-Петербург','Россия','LED'), 'питера': ('Санкт-Петербург','Россия','LED'),
-    'стамбул': ('Стамбул','Турция','IST'), 'стамбула': ('Стамбул','Турция','IST'), 'анталья': ('Анталья','Турция','AYT'), 'антальи': ('Анталья','Турция','AYT'),
-    'ереван': ('Ереван','Армения','EVN'), 'еревана': ('Ереван','Армения','EVN'), 'тбилиси': ('Тбилиси','Грузия','TBS'),
-    'баку': ('Баку','Азербайджан','GYD'), 'белград': ('Белград','Сербия','BEG'), 'дубай': ('Дубай','ОАЭ','DXB'), 'дубая': ('Дубай','ОАЭ','DXB'),
-    'рим': ('Рим','Италия','ROM'), 'рима': ('Рим','Италия','ROM'), 'париж': ('Париж','Франция','PAR'), 'парижа': ('Париж','Франция','PAR'),
-    'барселона': ('Барселона','Испания','BCN'), 'барселоны': ('Барселона','Испания','BCN'), 'прага': ('Прага','Чехия','PRG'), 'праги': ('Прага','Чехия','PRG')
+CITY_HINTS = {
+    "стамбул": ("Стамбул", "Турция"),
+    "анталь": ("Анталья", "Турция"),
+    "ереван": ("Ереван", "Армения"),
+    "тбилис": ("Тбилиси", "Грузия"),
+    "баку": ("Баку", "Азербайджан"),
+    "белград": ("Белград", "Сербия"),
+    "дубай": ("Дубай", "ОАЭ"),
+    "рим": ("Рим", "Италия"),
+    "париж": ("Париж", "Франция"),
+    "барселон": ("Барселона", "Испания"),
+    "прага": ("Прага", "Чехия"),
+    "сочи": ("Сочи", "Россия"),
+    "москв": ("Москва", "Россия"),
 }
-MONTHS = {'января':'01','февраля':'02','марта':'03','апреля':'04','мая':'05','июня':'06','июля':'07','августа':'08','сентября':'09','октября':'10','ноября':'11','декабря':'12'}
+MONTHS = "января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря"
 
 
 def clean_text(text: str) -> str:
-    return re.sub(r'\s+', ' ', (text or '').replace('\xa0',' ')).strip()
-
-
-def _norm_city_token(token: str) -> str:
-    return re.sub(r'[^а-яё\- ]+', '', token.lower()).strip()
-
-
-def city_lookup(token: str) -> tuple[str,str,str]:
-    t=_norm_city_token(token)
-    if t in CITY_DATA:
-        return CITY_DATA[t]
-    for key, val in CITY_DATA.items():
-        if key in t or t in key:
-            return val
-    return '', '', ''
+    return re.sub(r"\s+", " ", (text or "").replace("\xa0", " ")).strip()
 
 
 def extract_price(text: str) -> str:
-    m = re.search(r'\d[\d\s]{1,8}\s?(?:₽|руб\.?|рублей|€|евро|\$)', text or '', flags=re.I)
-    return clean_text(m.group(0)) if m else ''
+    match = re.search(r"\d[\d\s]{1,8}\s?(?:₽|руб\.?|рублей|€|евро|\$)", text or "", flags=re.I)
+    return clean_text(match.group(0)) if match else ""
 
 
-def detect_geo(text: str) -> tuple[str,str]:
-    low=(text or '').lower()
-    for k,(city,country,_) in CITY_DATA.items():
-        if k in low:
-            return city,country
-    return '', ''
+def _nice_case(value: str) -> str:
+    value = clean_text(value).strip(" ,.-")
+    if not value:
+        return ""
+    return " ".join(part.capitalize() for part in value.split())
 
 
-def extract_route(text: str) -> dict[str,str]:
-    raw=clean_text(text)
-    patterns=[
-        r'из\s+([А-Яа-яЁё\- ]{3,30})\s+в\s+([А-Яа-яЁё\- ]{3,30})(?:\s|$|за|от|—|-|,|\.)',
-        r'([А-Яа-яЁё\- ]{3,30})\s*[—–-]\s*([А-Яа-яЁё\- ]{3,30})(?:\s|$|за|от|,|\.)'
+def extract_route(text: str) -> tuple[str, str]:
+    raw = clean_text(text)
+    patterns = [
+        r"из\s+([А-ЯA-ZЁ][А-Яа-яA-Za-zЁё\- ]{1,40}?)\s+в\s+([А-ЯA-ZЁ][А-Яа-яA-Za-zЁё\- ]{1,40}?)(?:\s|,|\.|$)",
+        r"([А-ЯA-ZЁ][А-Яа-яA-Za-zЁё\- ]{1,40}?)\s*[-–—>]+\s*([А-ЯA-ZЁ][А-Яа-яA-Za-zЁё\- ]{1,40}?)(?:\s|,|\.|$)",
     ]
-    for pat in patterns:
-        m=re.search(pat, raw, flags=re.I)
-        if not m: continue
-        a,b=clean_text(m.group(1)),clean_text(m.group(2))
-        ac,aco,ai=city_lookup(a); bc,bco,bi=city_lookup(b)
-        if ac and bc and ac!=bc:
-            return {'route_from':ac,'route_to':bc,'origin_iata':ai,'destination_iata':bi,'route_country_from':aco,'route_country_to':bco}
-    return {}
+    for pattern in patterns:
+        match = re.search(pattern, raw, flags=re.I)
+        if not match:
+            continue
+        origin = _nice_case(match.group(1))
+        destination = _nice_case(match.group(2))
+        if origin and destination and origin.lower() != destination.lower():
+            return origin, destination
+    return "", ""
 
 
-def extract_depart_date(text: str) -> dict[str,str]:
-    raw=(text or '').lower()
-    m=re.search(r'\b([0-3]?\d)\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\b', raw)
-    if m:
-        return {'depart_day':m.group(1).zfill(2),'depart_month':MONTHS[m.group(2)],'depart_human':f"{int(m.group(1))} {m.group(2)}"}
-    # Если источник пишет просто "15 июня" в заголовке это поймается выше. Одинокую цифру не считаем датой, чтобы не делать ложные deeplink.
-    return {}
+def extract_nights(text: str) -> str:
+    match = re.search(r"(\d{1,2}\s*(?:ноч[ейи]|дн(?:я|ей)))", text or "", flags=re.I)
+    return clean_text(match.group(1)) if match else ""
 
 
-def make_signal(source: dict[str, Any], title: str, url: str, text: str, published_at: str='', media_url: str='') -> dict[str, Any]:
-    title=clean_text(title)[:220]; text=clean_text(text)[:2800]; full=title+' '+text
-    city,country=detect_geo(full)
-    data={'source_key':source['key'],'source_name':source['name'],'source_url':source['endpoint'],'title':title or text[:120] or source['name'],'text':text,'url':url or source['endpoint'],'published_at':published_at,'collected_at':datetime.now(timezone.utc).isoformat(),'price':extract_price(full),'city':city,'country':country,'raw_role':source.get('role',''),'media_url':media_url or ''}
-    data.update(extract_route(full)); data.update(extract_depart_date(full))
-    if data.get('route_to'):
-        data['city']=data['route_to']; data['country']=data.get('route_country_to','') or data.get('country','')
-    return data
+def extract_event_date(text: str) -> str:
+    match = re.search(rf"(\d{{1,2}}(?:\s*[-–]\s*\d{{1,2}})?\s+(?:{MONTHS})(?:\s+\d{{4}})?)", text or "", flags=re.I)
+    return clean_text(match.group(1)) if match else ""
+
+
+def extract_hotel_name(text: str) -> str:
+    patterns = [
+        r"отель\s+([A-ZА-ЯЁ0-9][A-Za-zА-Яа-яЁё0-9&'\-\s]{2,80})",
+        r"hotel\s+([A-Z0-9][A-Za-z0-9&'\-\s]{2,80})",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text or "", flags=re.I)
+        if match:
+            return clean_text(match.group(1)).strip(" ,.-")
+    return ""
+
+
+def detect_direct_flight(text: str) -> bool:
+    low = (text or "").lower()
+    return "прям" in low or "без пересад" in low
+
+
+def extract_event_name(title: str, text: str, source: dict[str, Any]) -> str:
+    role = (source.get("role") or "").lower()
+    title = clean_text(title)
+    if role in {"events", "events_and_routes", "activities"}:
+        if ":" in title:
+            tail = clean_text(title.split(":", 1)[1])
+            if len(tail) >= 6:
+                return tail[:120]
+        return title[:120]
+    return ""
+
+
+def detect_geo(text: str) -> tuple[str, str]:
+    low = (text or "").lower()
+    for key, value in CITY_HINTS.items():
+        if key in low:
+            return value
+    return "", ""
+
+
+def make_signal(
+    source: dict[str, Any],
+    title: str,
+    url: str,
+    text: str,
+    published_at: str = "",
+) -> dict[str, Any]:
+    title = clean_text(title)[:220]
+    text = clean_text(text)[:2800]
+    base_text = f"{title} {text}".strip()
+    city, country = detect_geo(base_text)
+    route_from, route_to = extract_route(base_text)
+    return {
+        "source_key": source["key"],
+        "source_name": source["name"],
+        "source_url": source["endpoint"],
+        "title": title or text[:120] or source["name"],
+        "text": text,
+        "url": url or source["endpoint"],
+        "published_at": published_at,
+        "collected_at": datetime.now(timezone.utc).isoformat(),
+        "price": extract_price(base_text),
+        "city": city,
+        "country": country,
+        "route_from": route_from,
+        "route_to": route_to,
+        "nights": extract_nights(base_text),
+        "event_date": extract_event_date(base_text),
+        "hotel_name": extract_hotel_name(base_text),
+        "event_name": extract_event_name(title, text, source),
+        "is_direct": detect_direct_flight(base_text),
+        "raw_role": source.get("role", ""),
+    }

@@ -1,123 +1,107 @@
 from __future__ import annotations
+
+from html import escape, unescape
 from pathlib import Path
+import re
 from typing import Any
-from html import escape
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 
-CAPTION_LIMIT = 1000
-MESSAGE_LIMIT = 3900
-
-GENRE_EMOJI = {
-    'flight_deal': '✈️',
-    'tour_offer': '🔥',
-    'hot_tour': '🔥',
-    'last_minute': '🔥',
-    'hotel_post': '🏨',
-    'premium_hotel': '🏨',
-    'event_trip': '🎟',
-    'concert_trip': '🎟',
-    'weekend_activity': '🗺',
-    'activities_post': '🎭',
-    'destination_post': '🌍',
-    'weekend_trip': '🧳',
-    'city_break': '🏙',
-    'practical_travel': '🧳',
-    'visa_or_residence': '📌',
-    'payment_abroad': '💳',
-    'insurance_tip': '🛡',
-}
+from .offer_formatter import build_offer_line
 
 
 def keyboard(buttons: list[dict]) -> InlineKeyboardMarkup | None:
-    rows = []
-    for b in buttons[:3]:
-        text = str(b.get('text', '')).strip()
-        url = str(b.get('url', '')).strip()
-        if text and url:
-            rows.append([InlineKeyboardButton(text, url=url)])
+    rows = [[InlineKeyboardButton(button["text"], url=button["url"])] for button in buttons[:3] if button.get("text") and button.get("url")]
     return InlineKeyboardMarkup(rows) if rows else None
 
 
-def _plain(v: dict) -> str:
-    return '\n\n'.join([x.strip() for x in [v.get('title', ''), v.get('text', ''), v.get('cta', '')] if x and x.strip()])
+def _plain_parts(variant: dict, plan: dict | None = None, signal: dict | None = None) -> list[str]:
+    parts: list[str] = []
+    title = (variant.get("title") or "").strip()
+    if title:
+        parts.append(title)
+    offer_line = build_offer_line(plan or {}, signal or {})
+    if offer_line:
+        plain_offer = re.sub(r"</?a[^>]*>", "", offer_line)
+        parts.append(unescape(plain_offer))
+    text = (variant.get("text") or "").strip()
+    if text:
+        parts.append(text)
+    cta = (variant.get("cta") or "").strip()
+    if cta:
+        parts.append(cta)
+    return parts
 
 
-def _truncate_html_body(text: str, limit: int) -> str:
-    # Текст уже будет экранирован после обрезки, поэтому тут режем обычную строку.
-    text = str(text or '').strip()
-    if len(text) <= limit:
-        return text
-    cut = text[:limit].rsplit('\n\n', 1)[0].strip()
-    if len(cut) < 350:
-        cut = text[:limit].rsplit(' ', 1)[0].strip()
-    return cut.rstrip('.,;:') + '…'
+def render_post(variant: dict, plan: dict | None = None, signal: dict | None = None) -> str:
+    return "\n\n".join(_plain_parts(variant, plan, signal))[:3900]
 
 
-def render_post(v: dict, topic: str | None = None, *, html: bool = True, for_caption: bool = False) -> str:
-    """Готовит пост именно как Telegram-публикацию, а не как сырой текст.
-
-    Формат по ТЗ:
-    - заметный заголовок;
-    - короткие абзацы;
-    - умеренные эмодзи;
-    - без служебных слов;
-    - текст умещается в подпись к фото, если публикуется с медиа.
-    """
-    title = str(v.get('title', '')).strip()
-    body = str(v.get('text', '')).strip()
-    cta = str(v.get('cta', '')).strip()
-    topic = topic or str(v.get('topic', '') or v.get('genre_key', '')).strip()
-    emoji = str(v.get('emoji', '') or GENRE_EMOJI.get(topic, '🌍'))
-
-    if for_caption:
-        # Telegram photo caption ограничен. Лучше сильный компактный пост с фото, чем картинка отдельно и простыня ниже.
-        reserve = len(title) + len(cta) + 24
-        body = _truncate_html_body(body, max(360, CAPTION_LIMIT - reserve))
-
-    if html:
-        head = f"<b>{escape((emoji + ' ' + title).strip())}</b>" if title else ''
-        parts = [head]
-        if body:
-            parts.append(escape(body))
-        if cta:
-            parts.append(escape(cta))
-        result = '\n\n'.join([p for p in parts if p]).strip()
-        if for_caption and len(result) > CAPTION_LIMIT:
-            # Финальная страховка: не отдаём Telegram слишком длинный caption.
-            result = result[:CAPTION_LIMIT - 1].rsplit(' ', 1)[0].strip() + '…'
-        return result[:MESSAGE_LIMIT]
-
-    return _plain(v)[:MESSAGE_LIMIT]
+def render_post_html(variant: dict, plan: dict | None = None, signal: dict | None = None) -> str:
+    parts: list[str] = []
+    title = (variant.get("title") or "").strip()
+    if title:
+        parts.append(f"<b>{escape(title)}</b>")
+    offer_line = build_offer_line(plan or {}, signal or {})
+    if offer_line:
+        parts.append(offer_line)
+    text = (variant.get("text") or "").strip()
+    if text:
+        escaped = escape(text).replace("\n", "\n")
+        parts.append(escaped)
+    cta = (variant.get("cta") or "").strip()
+    if cta:
+        parts.append(escape(cta))
+    return "\n\n".join(parts).strip()[:3900]
 
 
-async def publish_to_channel(bot: Any, channel_id: str, variant: dict, media: dict, topic: str | None = None) -> bool:
-    markup = keyboard(variant.get('buttons', []))
-    if media.get('type') == 'url' and media.get('value'):
+async def publish_to_channel(
+    bot: Any,
+    channel_id: str,
+    variant: dict,
+    media: dict,
+    plan: dict | None = None,
+    signal: dict | None = None,
+) -> bool:
+    used = False
+    html_text = render_post_html(variant, plan, signal)
+    markup = keyboard(variant.get("buttons", []))
+
+    if media.get("type") == "url" and media.get("value") and len(html_text) <= 1000:
         await bot.send_photo(
             chat_id=channel_id,
-            photo=media['value'],
-            caption=render_post(variant, topic, html=True, for_caption=True),
+            photo=media["value"],
+            caption=html_text,
             parse_mode=ParseMode.HTML,
             reply_markup=markup,
         )
         return True
-    if media.get('type') == 'file' and media.get('value') and Path(media['value']).exists():
-        with Path(media['value']).open('rb') as fh:
+
+    if media.get("type") == "file" and media.get("value") and Path(media["value"]).exists() and len(html_text) <= 1000:
+        with Path(media["value"]).open("rb") as fh:
             await bot.send_photo(
                 chat_id=channel_id,
                 photo=fh,
-                caption=render_post(variant, topic, html=True, for_caption=True),
+                caption=html_text,
                 parse_mode=ParseMode.HTML,
                 reply_markup=markup,
             )
         return True
 
+    if media.get("type") == "url" and media.get("value"):
+        await bot.send_photo(chat_id=channel_id, photo=media["value"])
+        used = True
+    elif media.get("type") == "file" and media.get("value") and Path(media["value"]).exists():
+        with Path(media["value"]).open("rb") as fh:
+            await bot.send_photo(chat_id=channel_id, photo=fh)
+        used = True
+
     await bot.send_message(
         chat_id=channel_id,
-        text=render_post(variant, topic, html=True),
+        text=html_text,
         parse_mode=ParseMode.HTML,
         reply_markup=markup,
         disable_web_page_preview=False,
     )
-    return False
+    return used
