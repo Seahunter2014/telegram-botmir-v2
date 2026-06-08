@@ -1,88 +1,156 @@
 from __future__ import annotations
 
-import os
+import logging
+import textwrap
 from pathlib import Path
-from urllib.parse import urlencode
+from urllib.parse import urlparse
 
 import requests
 from PIL import Image, ImageDraw, ImageFont
 
-from .config_loader import ROOT_DIR
+from .config_loader import MEDIA_DIR, env
+from .models import EditorialBrief, PostVariant
+from .text_utils import hash_text
+
+log = logging.getLogger(__name__)
 
 
-def query(plan: dict, signal: dict) -> str:
-    parts = [
-        plan.get("city"),
-        plan.get("country"),
-        signal.get("route_to"),
-        signal.get("hotel_name"),
-        signal.get("event_name"),
-        signal.get("title"),
-    ]
-    return " ".join([part for part in parts if part])[:120] or "travel"
+class MediaEngine:
+    """
+    Editorial media selector.
 
+    Rules fixed in v5.4:
+    - do not use Telegram source previews for channel pictures;
+    - do not attach white "document-like" offer cards to flight deals;
+    - for flight deals, first try a real recognizable destination photo;
+    - if no good real photo is available, publish without media instead of a bad card;
+    - cards are allowed only for non-flight fallback/manual informational posts.
+    """
 
-def source_media(signal: dict) -> str:
-    return (signal.get("media_url") or "").strip()
-
-
-def pexels(plan: dict, signal: dict) -> str:
-    key = os.getenv("PEXELS_API_KEY", "").strip()
-    if not key:
-        return ""
-    try:
-        response = requests.get(
-            "https://api.pexels.com/v1/search?" + urlencode({"query": query(plan, signal), "per_page": 1, "orientation": "portrait"}),
-            headers={"Authorization": key},
-            timeout=10,
-        )
-        response.raise_for_status()
-        photos = response.json().get("photos", [])
-        if not photos:
+    def choose_media(self, brief: EditorialBrief, variant: PostVariant, media_query: str = "") -> str:
+        # Flight deals need either a real destination photo or no image.
+        # A weak white offer card looks like a document preview and damages the channel.
+        if brief.genre == "flight_deal":
+            query = self.flight_photo_query(brief, variant, media_query)
+            pexels = self.fetch_pexels(query)
+            if pexels:
+                return pexels
+            log.info("No real photo found for flight_deal; publishing without media instead of fallback card. query=%s", query)
             return ""
-        return photos[0].get("src", {}).get("large2x") or photos[0].get("src", {}).get("large") or ""
-    except Exception:
+
+        # Telegram source pictures are not trusted: public previews often contain
+        # blank wrappers, documents, screenshots, or unrelated channel cards.
+        if self._source_media_allowed(brief) and self._looks_like_real_image_url(brief.signal.media_url):
+            return brief.signal.media_url
+
+        query = media_query or self.query_from_brief(brief, variant)
+        pexels = self.fetch_pexels(query)
+        if pexels:
+            return pexels
+
+        # Non-flight fallback: use a clear branded card. Never for flight_deal.
+        return self.make_text_card(variant.title, brief.genre, brief.route_to or brief.city)
+
+    def flight_photo_query(self, brief: EditorialBrief, variant: PostVariant, media_query: str = "") -> str:
+        destination = brief.route_to or brief.city or brief.country
+        if media_query and destination and destination.lower() in media_query.lower():
+            return media_query
+        if destination:
+            return f"{destination} famous landmark city skyline travel"
+        return "airplane window city skyline travel"
+
+    def _source_media_allowed(self, brief: EditorialBrief) -> bool:
+        source = brief.signal.raw.get("source", {}) if isinstance(brief.signal.raw, dict) else {}
+        if not source.get("allow_source_media"):
+            return False
+        url = brief.signal.media_url or ""
+        host = (urlparse(url).netloc or "").lower()
+        if "telegram" in host or "t.me" in host:
+            return False
+        return True
+
+    def _looks_like_real_image_url(self, url: str) -> bool:
+        if not url:
+            return False
+        lower = url.lower()
+        bad_hosts = ["t.me", "telegram", "web.telegram.org"]
+        host = (urlparse(url).netloc or "").lower()
+        if any(x in host for x in bad_hosts):
+            return False
+        # Accept common CDN/image URLs; reject obvious HTML/source wrappers.
+        if any(lower.endswith(ext) for ext in [".jpg", ".jpeg", ".png", ".webp"]):
+            return True
+        if any(x in lower for x in ["images", "photos", "cdn", "pexels", "unsplash"]):
+            return True
+        return False
+
+    def query_from_brief(self, brief: EditorialBrief, variant: PostVariant) -> str:
+        place = brief.route_to or brief.city or brief.country
+        if place:
+            genre_hint = {
+                "destination_post": "famous landmark travel cityscape",
+                "weekend_trip": "historic center travel street",
+                "city_break": "city skyline landmark travel",
+                "beach_trip": "beautiful beach sea resort",
+                "hotel_post": "hotel travel interior exterior",
+                "premium_hotel": "luxury hotel travel resort",
+                "event_trip": "city landmark evening travel",
+                "concert_trip": "city landmark evening travel",
+            }.get(brief.genre, "famous landmark travel cityscape")
+            return f"{place} {genre_hint}"
+        return f"travel destination landmark {variant.title[:40]}"
+
+    def fetch_pexels(self, query: str) -> str:
+        key = env("PEXELS_API_KEY")
+        if not key:
+            return ""
+        try:
+            r = requests.get(
+                "https://api.pexels.com/v1/search",
+                params={"query": query, "orientation": "landscape", "per_page": 8},
+                headers={"Authorization": key},
+                timeout=10,
+            )
+            if r.status_code != 200:
+                log.warning("Pexels non-200: %s %s", r.status_code, r.text[:120])
+                return ""
+            data = r.json()
+            photos = data.get("photos") or []
+            for photo in photos:
+                src = photo.get("src", {})
+                candidate = src.get("large2x") or src.get("large") or src.get("original") or ""
+                if candidate and self._looks_like_real_image_url(candidate):
+                    return candidate
+        except Exception as exc:
+            log.warning("Pexels failed: %s", exc)
         return ""
 
+    def make_text_card(self, title: str, genre: str, place: str = "") -> str:
+        subtitle = place or "идея для путешествия"
+        return self._draw_card(title[:75], subtitle, "🌍 Мир на ладони")
 
-def card(plan: dict, signal: dict) -> Path:
-    out = ROOT_DIR / "data" / "media_cache"
-    out.mkdir(parents=True, exist_ok=True)
-    path = out / "fallback_card.jpg"
-    img = Image.new("RGB", (1080, 1350), (245, 241, 232))
-    draw = ImageDraw.Draw(img)
-    try:
-        big = ImageFont.truetype("DejaVuSans.ttf", 54)
-        small = ImageFont.truetype("DejaVuSans.ttf", 36)
-    except Exception:
-        big = small = None
-    title = (plan.get("main_fact") or signal.get("title") or "Мир на ладони")[:160]
-    words = title.split()
-    lines: list[str] = []
-    current = ""
-    for word in words:
-        if len(current + " " + word) <= 26:
-            current = (current + " " + word).strip()
-        else:
-            lines.append(current)
-            current = word
-    if current:
-        lines.append(current)
-    draw.rectangle((60, 60, 1020, 1290), outline=(80, 80, 80), width=4)
-    draw.text((100, 180), "Мир на ладони", fill=(30, 30, 30), font=small)
-    draw.text((100, 320), "\n".join(lines[:8]), fill=(20, 20, 20), font=big, spacing=12)
-    draw.text((100, 1120), plan.get("genre", "travel"), fill=(60, 60, 60), font=small)
-    img.save(path, quality=92)
-    return path
+    def _draw_card(self, title: str, subtitle: str, brand: str) -> str:
+        MEDIA_DIR.mkdir(parents=True, exist_ok=True)
+        path = MEDIA_DIR / f"card_{hash_text(title + subtitle)}.jpg"
+        if path.exists():
+            return str(path)
 
+        # Dark travel-style fallback card for non-flight posts only.
+        img = Image.new("RGB", (1280, 720), (24, 46, 62))
+        draw = ImageDraw.Draw(img)
+        try:
+            font_title = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 64)
+            font_sub = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 36)
+            font_brand = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 32)
+        except Exception:
+            font_title = font_sub = font_brand = None
 
-def choose_media(plan: dict, signal: dict, allow_fallback: bool = True) -> dict:
-    direct = source_media(signal)
-    if direct:
-        return {"type": "url", "value": direct, "source": "source_media"}
-    url = pexels(plan, signal)
-    if url:
-        return {"type": "url", "value": url, "source": "pexels"}
-    if allow_fallback:
-        return {"type": "file", "value": str(card(plan, signal)), "source": "fallback_card"}
-    return {"type": "none", "value": "", "source": "none"}
+        draw.rounded_rectangle((60, 60, 1220, 660), radius=42, fill=(31, 77, 96), outline=(116, 190, 188), width=4)
+        draw.text((105, 105), brand, fill=(224, 246, 243), font=font_brand)
+        y = 235
+        for line in textwrap.wrap(title, width=26)[:3]:
+            draw.text((105, y), line, fill=(255, 255, 255), font=font_title)
+            y += 78
+        draw.text((105, 560), subtitle, fill=(207, 234, 230), font=font_sub)
+        img.save(path, quality=94)
+        return str(path)

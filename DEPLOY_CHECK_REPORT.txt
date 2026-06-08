@@ -1,7 +1,65 @@
-OK: структура соответствует ТЗ
+DEPLOY CHECK REPORT — v5.3 GPT_OUTPUT_NORMALIZE_FIX
+
 OK: requirements.txt чистый
-OK: мусора нет
-OK: JSON читаются
+OK: JSON configs читаются
 OK: src/*.py компилируются
-OK: старых шаблонных фраз в runtime-коде нет
-OK: проект прошёл проверку
+OK: tests/validate_project.py проходит
+OK: TourJin есть в services.json
+OK: flight_deal не ведёт на чужой Telegram
+OK: media для flight_deal создаётся карточкой оффера
+OK: исправлена ошибка 'str' object has no attribute 'extend'
+OK: AIWriter нормализует warnings/buttons/variants
+OK: QualitySelector больше не падает при warnings=str
+
+DEPLOY CHECK REPORT — v5.2 LINK_MEDIA_FLIGHT_FIX
+Date: 2026-06-07
+
+Status: PASSED
+
+Changed / fixed files:
+1. src/cta_engine.py
+   - flight_deal no longer links to чужие Telegram-каналы.
+   - first flight_deal button goes to Aviasales route search.
+   - Telegram links are blocked except TourJin bot.
+2. src/media_engine.py
+   - flight_deal always gets an offer card.
+   - Telegram source preview images are not trusted by default.
+   - fallback media is a branded card, not blank image.
+3. src/signal_extractor.py
+   - improved route extraction.
+   - supports “Нижний — Минск” and “из Нижнего Новгорода в Минск”.
+4. configs/cities_iata.json
+   - includes GOJ for Нижний Новгород and MSQ for Минск.
+5. configs/city_aliases.json
+   - includes aliases for Нижний / Нижнего Новгорода / Минск.
+
+Additional file updated:
+- src/version.py — version changed to v5.2 for /version check.
+
+Runtime logic test:
+Signal: Нижний — Минск, старт 5 июля, билеты от 7000 рублей.
+Extracted:
+- route_from: Нижний Новгород
+- route_to: Минск
+- price: 7000 ₽
+- date_text: 5 июля
+Generated Aviasales URL:
+- https://www.aviasales.ru/search/GOJ0507MSQ?marker=98526
+Media:
+- generated local offer card in media_cache, not Telegram preview.
+
+Validation:
+OK: requirements.txt clean
+OK: JSON configs readable
+OK: src/*.py compiles
+OK: tests/validate_project.py passed
+OK: no __pycache__
+OK: no *.pyc
+OK: no download garbage
+OK: TourJin exists in services.json
+OK: menu schedule/channel/test commands present
+
+
+[v5.4]
+OK: src/media_engine.py fixed: flight_deal uses real destination photo or no media.
+OK: white document-like flight card removed.

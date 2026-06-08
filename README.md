@@ -1,53 +1,38 @@
-# Telegram-бот AI-редактор «Мир на ладони»
+# Мир на ладони — AI Newsroom Bot v5.0
 
-Версия: **2026.06.05 FINAL AI NEWSROOM**
+Чистая финальная архитектура Telegram-бота AI-редактора по MASTER-ТЗ.
 
-Сборка работает как AI-редакция: ищет свежие темы, определяет жанр, делает редакционный план, генерирует 3 варианта поста, выбирает лучший вариант, встраивает прямой оффер в текст, подбирает медиа и публикует в Telegram.
+## Запуск на Railway
 
-## Railway Start Command
+Start command:
 
 ```bash
 python -m src.telegram_app
 ```
 
-## Railway Variables
+## Ключевой принцип
 
-```env
-TELEGRAM_BOT_TOKEN=
-TELEGRAM_ADMIN_ID=
-TELEGRAM_CHANNEL_ID=
-TEST_CHANNEL_ID=
+Бот не копирует источники. Источник — только сырьё для редакционного повода. Итог — готовый Telegram-пост: заголовок, короткие абзацы, вовлечение, уместные ссылки, релевантное медиа.
 
-OPENAI_API_KEY=
-OPENAI_MODEL=gpt-4.1-mini
-OPENAI_TEMPERATURE=0.85
-AI_EDITOR_ENABLED=true
-AI_EDITOR_TEMPERATURE=0.85
+## Главные команды
 
-PEXELS_API_KEY=
+- `/menu` — главное меню
+- `/version` — версия
+- `/test` — следующий тестовый пост
+- `/test 1` или сообщение `тест 1` — тест темы под номером 1
+- `/test flight_deal` — тест жанра
+- `/run_once` — один автопостинг вручную
+- `/schedule` — расписание
+- `/schedule_set 09:00,14:00,19:00` — сменить расписание
+- `/channels` — список каналов
+- `/add_channel @channel` — добавить канал
+- `/remove_channel @channel` — удалить канал
+- `/set_channels @channel1,@channel2` — заменить список каналов
+- `/autopost_on` / `/autopost_off` — автопостинг
+- `/status` — статус
 
-TRAVELPAYOUTS_API_TOKEN=
-TRAVELPAYOUTS_MARKER=98526
-```
-
-## Проверка перед загрузкой
+## Проверка проекта
 
 ```bash
 python tests/validate_project.py
 ```
-
-## Команды
-
-- `/version`
-- `/test`
-- `/preview`
-- `/publish`
-- `/autopost_on`
-- `/autopost_off`
-- `/schedule`
-- `/status`
-- `/last`
-- `/why_skipped`
-- `/sources`
-- `/topics`
-- `/services`

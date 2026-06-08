@@ -1,10 +1,11 @@
-# Чек-лист
+# Чек-лист готовности
 
-1. Загрузить в пустой репозиторий распакованные файлы.
-2. Проверить `requirements.txt`.
-3. Запустить `python tests/validate_project.py`.
-4. В Railway поставить Start Command: `python -m src.telegram_app`.
-5. Заполнить переменные из `.env.example`.
-6. Проверить `/version`.
-7. Проверить `/test`.
-8. Включать автопостинг только после ручного теста.
+- `/version` показывает v5.0 MASTER_EDITORIAL_CORE.
+- `/test` даёт 3 варианта.
+- `тест 1`, `тест 2`, `тест 3` работают как последовательные темы.
+- `/channels`, `/add_channel`, `/remove_channel`, `/set_channels` работают.
+- `/schedule`, `/schedule_set` работают.
+- `/autopost_on`, `/autopost_off` работают.
+- TourJin есть в `configs/services.json`.
+- Старых файлов `draft_writer.py`, `style_editor.py`, `.pyc`, `__pycache__`, `download` нет.
+- `requirements.txt` содержит только библиотеки.

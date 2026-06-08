@@ -1,60 +1,90 @@
-from __future__ import annotations
 import json
-from datetime import datetime, timezone
-from hashlib import sha256
+import time
 from pathlib import Path
 from typing import Any
-from .config_loader import ROOT_DIR
+from .config_loader import DATA_DIR, env
 
-STATE_PATH = ROOT_DIR/'data'/'state.json'
-LOG_PATH = ROOT_DIR/'data'/'publication_log.json'
-REJECT_PATH = ROOT_DIR/'data'/'rejected_topics.json'
+DEFAULT_STATE = {
+    "autopost_enabled": False,
+    "schedule_times": ["09:00", "14:00", "19:00"],
+    "channels": [],
+    "test_channel": "",
+    "source_cursor": 0,
+    "test_cursor": 0,
+    "published_urls": [],
+    "published_titles": [],
+    "published_text_hashes": [],
+    "published_topics": [],
+    "published_genres": [],
+    "published_countries": [],
+    "published_cities": [],
+    "published_sources": [],
+    "last_slot": "",
+    "last_cta_type": "",
+    "rejected_topics": [],
+    "draft_sessions": {},
+    "last_skip_reason": "",
+    "analytics": []
+}
 
-def read_json(path: Path, default: Any) -> Any:
-    if not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(default, ensure_ascii=False, indent=2), encoding='utf-8')
-        return default
-    try:
-        return json.loads(path.read_text(encoding='utf-8'))
-    except json.JSONDecodeError:
-        path.rename(path.with_suffix(path.suffix+'.broken'))
-        path.write_text(json.dumps(default, ensure_ascii=False, indent=2), encoding='utf-8')
-        return default
+class StateStore:
+    def __init__(self, path: Path | None = None):
+        self.path = path or (DATA_DIR / "state.json")
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        if not self.path.exists():
+            self.save(DEFAULT_STATE.copy())
+        self.bootstrap_env_channels()
 
-def write_json(path: Path, data: Any) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix+'.tmp')
-    tmp.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
-    tmp.replace(path)
+    def load(self) -> dict[str, Any]:
+        try:
+            data = json.loads(self.path.read_text(encoding="utf-8"))
+        except Exception:
+            data = DEFAULT_STATE.copy()
+        merged = DEFAULT_STATE.copy()
+        merged.update(data)
+        return merged
 
-def load_state() -> dict[str, Any]: return read_json(STATE_PATH, {})
-def save_state(state: dict[str, Any]) -> None: write_json(STATE_PATH, state)
-def load_publication_log() -> list[dict[str, Any]]: return read_json(LOG_PATH, [])
+    def save(self, data: dict[str, Any]) -> None:
+        self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
 
-def fingerprint(text: str) -> str:
-    cleaned = ''.join(ch.lower() if ch.isalnum() or ch.isspace() else ' ' for ch in text)
-    words = [w for w in cleaned.split() if len(w) > 3]
-    return ' '.join(words[:80])
+    def get(self, key: str, default=None):
+        return self.load().get(key, default)
 
-def record_skip(reason: str, details: str = '', extra: dict[str, Any] | None = None) -> None:
-    state = load_state(); state['last_skip_report']={'time':datetime.now(timezone.utc).isoformat(),'reason':reason,'details':details, **(extra or {})}; save_state(state)
+    def set(self, key: str, value) -> None:
+        data = self.load()
+        data[key] = value
+        self.save(data)
 
-def record_selection(report: dict[str, Any]) -> None:
-    state = load_state(); state['last_selection_report']={'time':datetime.now(timezone.utc).isoformat(), **report}; save_state(state)
+    def append_unique(self, key: str, value, limit: int = 500) -> None:
+        data = self.load()
+        arr = data.setdefault(key, [])
+        if value and value not in arr:
+            arr.append(value)
+        data[key] = arr[-limit:]
+        self.save(data)
 
-def remember_publication(package: dict[str, Any], variant: dict[str, Any], mode: str, used_media: bool) -> None:
-    state=load_state(); signal=package['signal']; plan=package['plan']; text=(variant.get('title','')+'\n'+variant.get('text','')).strip()
-    for key in ['published_urls','published_titles','published_text_hashes','published_semantic_fingerprints','published_topics','published_genres','published_countries','published_cities','published_sources']:
-        state.setdefault(key, [])
-    state['published_urls'].append(signal.get('url','')); state['published_titles'].append(signal.get('title',''))
-    state['published_text_hashes'].append(sha256(text.encode()).hexdigest()); state['published_semantic_fingerprints'].append(fingerprint(text))
-    state['published_topics'].append(plan.get('topic','')); state['published_genres'].append(plan.get('genre',''))
-    state['published_countries'].append(plan.get('country','')); state['published_cities'].append(plan.get('city','')); state['published_sources'].append(signal.get('source_key',''))
-    for key in list(state):
-        if key.startswith('published_'): state[key] = [x for x in state[key] if x][-200:]
-    save_state(state)
-    log=load_publication_log(); log.append({'time':datetime.now(timezone.utc).isoformat(),'mode':mode,'used_media':used_media,'source':signal,'plan':plan,'variant':{'title':variant.get('title'),'score':variant.get('quality',{}).get('score')}}); write_json(LOG_PATH, log[-1000:])
+    def bootstrap_env_channels(self) -> None:
+        data = self.load()
+        main = env("TELEGRAM_CHANNEL_ID")
+        test = env("TEST_CHANNEL_ID") or main
+        if main and main not in data.get("channels", []):
+            data.setdefault("channels", []).append(main)
+        if test:
+            data["test_channel"] = data.get("test_channel") or test
+        self.save(data)
 
-def append_rejected(record: dict[str, Any]) -> None:
-    data=read_json(REJECT_PATH, []); data.append({'time':datetime.now(timezone.utc).isoformat(), **record}); write_json(REJECT_PATH, data[-1000:])
+    def new_session_id(self) -> str:
+        return str(int(time.time() * 1000))[-10:]
+
+    def store_draft_session(self, session_id: str, payload: dict[str, Any]) -> None:
+        data = self.load()
+        sessions = data.setdefault("draft_sessions", {})
+        sessions[session_id] = payload
+        # keep last 20 sessions
+        if len(sessions) > 20:
+            for key in list(sessions.keys())[:-20]:
+                sessions.pop(key, None)
+        self.save(data)
+
+    def get_draft_session(self, session_id: str) -> dict[str, Any] | None:
+        return self.load().get("draft_sessions", {}).get(session_id)

@@ -1,129 +1,86 @@
 {
-  "rules": [
-    {
-      "topic": "tour_offer",
-      "links": [
-        "tours",
-        "insurance"
-      ],
-      "max_links": 2,
-      "preferred_format": "text_and_button"
-    },
-    {
-      "topic": "flight_deal",
-      "links": [
-        "flights",
-        "hotels"
-      ],
-      "max_links": 2,
-      "preferred_format": "text"
-    },
-    {
-      "topic": "hotel_post",
-      "links": [
-        "hotels",
-        "tours"
-      ],
-      "max_links": 2,
-      "preferred_format": "text"
-    },
-    {
-      "topic": "destination_post",
-      "links": [
-        "flights",
-        "hotels",
-        "tours"
-      ],
-      "max_links": 2,
-      "preferred_format": "text"
-    },
-    {
-      "topic": "event_trip",
-      "links": [
-        "events",
-        "flights",
-        "hotels"
-      ],
-      "max_links": 3,
-      "preferred_format": "text"
-    },
-    {
-      "topic": "weekend_trip",
-      "links": [
-        "flights",
-        "hotels",
-        "tours"
-      ],
-      "max_links": 2,
-      "preferred_format": "text"
-    },
-    {
-      "topic": "family_trip",
-      "links": [
-        "tours",
-        "hotels",
-        "insurance"
-      ],
-      "max_links": 2,
-      "preferred_format": "text_and_button"
-    },
-    {
-      "topic": "activities_post",
-      "links": [
-        "excursions",
-        "flights",
-        "hotels"
-      ],
-      "max_links": 3,
-      "preferred_format": "text"
-    },
-    {
-      "topic": "weekend_activity",
-      "links": [
-        "excursions",
-        "flights",
-        "hotels"
-      ],
-      "max_links": 3,
-      "preferred_format": "text"
-    },
-    {
-      "topic": "visa_or_residence",
-      "links": [
-        "foreign_cards",
-        "insurance"
-      ],
-      "max_links": 1,
-      "preferred_format": "soft_cta"
-    },
-    {
-      "topic": "payment_abroad",
-      "links": [
-        "foreign_cards"
-      ],
-      "max_links": 2,
-      "preferred_format": "text"
-    },
-    {
-      "topic": "practical_travel",
-      "links": [
-        "foreign_cards",
-        "insurance"
-      ],
-      "max_links": 1,
-      "preferred_format": "soft_cta"
-    },
-    {
-      "topic": "inspiration_story",
-      "links": [],
-      "max_links": 0,
-      "preferred_format": "no_partner_link"
-    }
-  ],
-  "general_rules": [
-    "Не вставлять ссылку ради галочки.",
-    "Не перегружать пост 3+ ссылками без необходимости.",
-    "Если упомянут конкретный объект, ссылка и фото должны ему соответствовать.",
-    "Вдохновляющие посты чаще лучше оставить без жесткой монетизации."
-  ]
+  "flight_deal": {
+    "categories": [
+      "flights",
+      "source",
+      "hotels"
+    ],
+    "max_buttons": 3,
+    "allow_tourjin": false
+  },
+  "destination_post": {
+    "categories": [
+      "flights",
+      "hotels",
+      "excursions",
+      "general_bot"
+    ],
+    "max_buttons": 3,
+    "allow_tourjin": true
+  },
+  "weekend_trip": {
+    "categories": [
+      "flights",
+      "hotels",
+      "excursions",
+      "general_bot"
+    ],
+    "max_buttons": 3,
+    "allow_tourjin": true
+  },
+  "tour_offer": {
+    "categories": [
+      "tours",
+      "insurance",
+      "general_bot"
+    ],
+    "max_buttons": 2,
+    "allow_tourjin": true
+  },
+  "hotel_post": {
+    "categories": [
+      "hotels",
+      "flights"
+    ],
+    "max_buttons": 2,
+    "allow_tourjin": false
+  },
+  "event_trip": {
+    "categories": [
+      "events",
+      "flights",
+      "hotels"
+    ],
+    "max_buttons": 3,
+    "allow_tourjin": false
+  },
+  "visa_or_residence": {
+    "categories": [
+      "foreign_cards",
+      "insurance"
+    ],
+    "max_buttons": 2,
+    "allow_tourjin": false
+  },
+  "payment_abroad": {
+    "categories": [
+      "foreign_cards"
+    ],
+    "max_buttons": 2,
+    "allow_tourjin": false
+  },
+  "practical_travel": {
+    "categories": [
+      "insurance",
+      "airport",
+      "general_bot"
+    ],
+    "max_buttons": 1,
+    "allow_tourjin": false
+  },
+  "inspiration_story": {
+    "categories": [],
+    "max_buttons": 0,
+    "allow_tourjin": false
+  }
 }
