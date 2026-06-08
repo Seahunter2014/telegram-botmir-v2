@@ -21,6 +21,11 @@ python -m src.telegram_app
 - `/test` — следующий тестовый пост
 - `/test 1` или сообщение `тест 1` — тест темы под номером 1
 - `/test flight_deal` — тест жанра
+- `/rewrite` — переписать последнюю редакторскую сессию
+- `/softer` — сделать мягче последнюю сессию
+- `/sales` — сделать продающе последнюю сессию
+- `/publish` или `/publish 2` — опубликовать лучший или конкретный вариант
+- `/reject` — отклонить последнюю тему
 - `/run_once` — один автопостинг вручную
 - `/schedule` — расписание
 - `/schedule_set 09:00,14:00,19:00` — сменить расписание
@@ -28,6 +33,7 @@ python -m src.telegram_app
 - `/add_channel @channel` — добавить канал
 - `/remove_channel @channel` — удалить канал
 - `/set_channels @channel1,@channel2` — заменить список каналов
+- `/set_test_channel @channel` — обновить тестовый канал
 - `/autopost_on` / `/autopost_off` — автопостинг
 - `/status` — статус
 

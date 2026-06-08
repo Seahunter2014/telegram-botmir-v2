@@ -23,6 +23,8 @@ class EditorialBriefEngine:
             genre=genre,
             slot=slot,
             score=score,
+            city=enriched.get("city", ""),
+            country=enriched.get("country", ""),
             route_from=enriched.get("route_from", ""),
             route_to=enriched.get("route_to", ""),
             price=enriched.get("price", ""),

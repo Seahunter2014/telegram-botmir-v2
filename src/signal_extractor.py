@@ -6,6 +6,44 @@ from .config_loader import read_json
 from .text_utils import extract_date_text, extract_price
 
 CITY_WORDS = None
+COUNTRY_BY_CITY = {
+    "Москва": "Россия",
+    "Пермь": "Россия",
+    "Санкт-Петербург": "Россия",
+    "Сочи": "Россия",
+    "Казань": "Россия",
+    "Калининград": "Россия",
+    "Минеральные Воды": "Россия",
+    "Краснодар": "Россия",
+    "Новосибирск": "Россия",
+    "Екатеринбург": "Россия",
+    "Нижний Новгород": "Россия",
+    "Самара": "Россия",
+    "Уфа": "Россия",
+    "Волгоград": "Россия",
+    "Ростов-на-Дону": "Россия",
+    "Красноярск": "Россия",
+    "Иркутск": "Россия",
+    "Омск": "Россия",
+    "Челябинск": "Россия",
+    "Тюмень": "Россия",
+    "Стамбул": "Турция",
+    "Анталья": "Турция",
+    "Тбилиси": "Грузия",
+    "Ереван": "Армения",
+    "Баку": "Азербайджан",
+    "Белград": "Сербия",
+    "Дубай": "ОАЭ",
+    "Рим": "Италия",
+    "Париж": "Франция",
+    "Барселона": "Испания",
+    "Прага": "Чехия",
+    "Нячанг": "Вьетнам",
+    "Хошимин": "Вьетнам",
+    "Ханой": "Вьетнам",
+    "Батуми": "Грузия",
+    "Минск": "Беларусь",
+}
 
 
 def _city_words() -> list[str]:
@@ -59,10 +97,23 @@ def extract_route(text: str) -> tuple[str, str]:
     return "", ""
 
 
+def extract_city(text: str) -> str:
+    for city in _city_words():
+        pattern = rf"(?<![А-Яа-яЁёA-Za-z]){re.escape(city)}(?![А-Яа-яЁёA-Za-z])"
+        if re.search(pattern, text or "", flags=re.IGNORECASE):
+            normalized = normalize_city(city)
+            if normalized:
+                return normalized
+    return ""
+
+
 def enrich_signal(signal):
     text = f"{signal.title}\n{signal.text}"
     route_from, route_to = extract_route(text)
+    city = route_to or extract_city(text)
     return {
+        "city": city,
+        "country": COUNTRY_BY_CITY.get(city, ""),
         "route_from": route_from,
         "route_to": route_to,
         "price": extract_price(text),

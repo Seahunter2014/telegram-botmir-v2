@@ -1,4 +1,5 @@
 from .anti_template_checker import AntiTemplateChecker
+from .config_loader import read_json
 from .models import GeneratedPost, PostVariant
 
 
@@ -15,6 +16,7 @@ def _normalize_warnings(value) -> list[str]:
 class QualitySelector:
     def __init__(self):
         self.checker = AntiTemplateChecker()
+        self.policy = read_json("editorial_policy.json", {})
 
     def score_variant(self, variant: PostVariant) -> tuple[int, list[str]]:
         score = int(variant.score or 0)
@@ -44,10 +46,16 @@ class QualitySelector:
             s, notes = self.score_variant(variant)
             variant.score = s
             variant.warnings = _normalize_warnings(variant.warnings)
-            variant.warnings.extend(notes)
+            for note in notes:
+                if note not in variant.warnings:
+                    variant.warnings.append(note)
             if notes:
                 all_notes.extend([f"Вариант {variant.variant_id}: {n}" for n in notes])
             if s > best_score:
                 best = variant
                 best_score = s
+        if best and best.score < int(self.policy.get("quality_min_publication_score", 85)):
+            all_notes.append(
+                f"Лучший вариант набрал только {best.score}/100, а для публикации нужно минимум {int(self.policy.get('quality_min_publication_score', 85))}/100."
+            )
         return best, all_notes

@@ -1,7 +1,5 @@
 import logging
 import re
-from datetime import datetime, timezone
-from typing import Iterable
 import requests
 from bs4 import BeautifulSoup
 from .config_loader import read_json
@@ -11,28 +9,46 @@ from .text_utils import clean_text, hash_text
 log = logging.getLogger(__name__)
 
 class SourceManager:
-    def __init__(self):
+    def __init__(self, state=None):
         self.sources = read_json("sources.json", [])
         self.fallback_signals = read_json("fallback_signals.json", [])
+        self.state = state
 
     def list_sources(self) -> list[dict]:
         return self.sources
 
     def fetch_signals(self, limit_per_source: int = 3, include_fallback: bool = False) -> list[Signal]:
         signals: list[Signal] = []
-        for source in self.sources:
+        active_sources = [s for s in self.sources if s.get("mode") != "manual"]
+        if not active_sources:
+            return self._fallback() if include_fallback else []
+        cursor = 0
+        if self.state:
+            cursor = int(self.state.get("source_cursor", 0) or 0) % len(active_sources)
+            self.state.set("source_cursor", (cursor + 1) % len(active_sources))
+        rotated_sources = active_sources[cursor:] + active_sources[:cursor]
+        for source in rotated_sources:
             if source.get("mode") == "manual":
                 continue
             try:
                 if source.get("method") == "telegram_public_html":
-                    signals.extend(self._fetch_telegram(source, limit_per_source))
+                    fetched = self._fetch_telegram(source, limit_per_source)
                 else:
-                    signals.extend(self._fetch_site(source, limit_per_source))
+                    fetched = self._fetch_site(source, limit_per_source)
+                signals.extend(self._prioritize_new(source, fetched))
             except Exception as exc:
                 log.warning("source failed %s: %s", source.get("key"), exc)
         if include_fallback and not signals:
             signals.extend(self._fallback())
-        return signals
+        deduped = []
+        seen = set()
+        for signal in signals:
+            marker = signal.url or f"{signal.source_key}:{signal.title}"
+            if marker in seen:
+                continue
+            seen.add(marker)
+            deduped.append(signal)
+        return deduped
 
     def fetch_for_test(self, offset: int = 0, genre: str = "") -> Signal | None:
         signals = self.fetch_signals(limit_per_source=5, include_fallback=True)
@@ -43,6 +59,21 @@ class SourceManager:
             return None
         idx = max(0, offset) % len(signals)
         return signals[idx]
+
+    def _prioritize_new(self, source: dict, signals: list[Signal]) -> list[Signal]:
+        if not signals or not self.state:
+            return signals
+        memory = (self.state.get("source_memory", {}) or {}).get(source.get("key", ""), {})
+        last_url = memory.get("url", "")
+        published_urls = set(self.state.get("published_urls", []))
+
+        def sort_key(signal: Signal):
+            return (
+                1 if signal.url == last_url else 0,
+                1 if signal.url in published_urls else 0,
+            )
+
+        return sorted(signals, key=sort_key)
 
     def _fetch_telegram(self, source: dict, limit: int) -> list[Signal]:
         url = source["url"]
@@ -78,6 +109,7 @@ class SourceManager:
         html = requests.get(url, timeout=12, headers={"User-Agent": "Mozilla/5.0"}).text
         soup = BeautifulSoup(html, "lxml")
         result = []
+        seen = set()
         for a in soup.find_all("a", href=True):
             text = clean_text(a.get_text(" "))
             if len(text) < 25:
@@ -88,6 +120,9 @@ class SourceManager:
                 href = (base.group(0) if base else "") + href
             if not href.startswith("http"):
                 continue
+            if href in seen or href.startswith("javascript:") or "#" in href:
+                continue
+            seen.add(href)
             result.append(Signal(
                 id=hash_text(source["key"] + href + text),
                 source_key=source["key"], source_name=source["name"], source_url=url,

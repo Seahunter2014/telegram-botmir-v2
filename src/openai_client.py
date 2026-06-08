@@ -5,7 +5,7 @@ class OpenAIClient:
     def __init__(self):
         self.api_key = env("OPENAI_API_KEY")
         self.model = env("OPENAI_MODEL", "gpt-4.1-mini")
-        self.temperature = env_float("OPENAI_TEMPERATURE", 0.85)
+        self.temperature = env_float("OPENAI_TEMPERATURE", env_float("AI_EDITOR_TEMPERATURE", 0.85))
         self.client = OpenAI(api_key=self.api_key) if self.api_key else None
 
     def complete_json(self, messages: list[dict], max_tokens: int = 3500) -> str:

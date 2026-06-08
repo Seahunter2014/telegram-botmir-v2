@@ -1,3 +1,3 @@
+PROJECT_NAME = "AI-редакция «Мир на ладони»"
 VERSION = "2026.06.07 FINAL AI NEWSROOM v5.4 REAL_PHOTO_OR_NO_MEDIA_FIX"
-PROJECT_NAME = "Мир на ладони — AI редактор Telegram-канала"
 BOT_CODENAME = "MASTER_EDITORIAL_CORE"
