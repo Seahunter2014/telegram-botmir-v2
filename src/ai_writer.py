@@ -13,10 +13,7 @@ class AIWriter:
         self.system_prompt = "\n\n".join([
             read_prompt("system_editor_ru.md"),
             read_prompt("hook_engagement_engine_ru.md"),
-            read_prompt("editorial_planner_ru.md"),
             read_prompt("writer_3_variants_ru.md"),
-            read_prompt("anti_template_ru.md"),
-            read_prompt("quality_selector_ru.md"),
             read_prompt("cta_rules_ru.md"),
             read_prompt("fact_check_ru.md"),
         ])

@@ -12,4 +12,3 @@ class AnalyticsStore:
         arr.append(payload)
         data["analytics"] = arr[-500:]
         self.state.save(data)
-        self.state.append_json_list("analytics.json", payload, limit=500)

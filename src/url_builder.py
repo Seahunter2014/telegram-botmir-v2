@@ -6,7 +6,7 @@ class UrlBuilder:
     def __init__(self):
         self.services = {s["key"]: s for s in read_json("services.json", [])}
         self.cities = read_json("cities_iata.json", {})
-        self.marker = env("TRAVELPAYOUTS_MARKER", env("AVIASALES_MARKER", "98526"))
+        self.marker = env("TRAVELPAYOUTS_MARKER", "98526")
 
     def service_url(self, key: str) -> str:
         return self.services.get(key, {}).get("url", "")

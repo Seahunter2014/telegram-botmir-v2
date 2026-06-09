@@ -50,13 +50,13 @@ class CTAEngine:
         elif genre in ["hotel_post", "premium_hotel"]:
             buttons.append(Button("🏨 Посмотреть отели", self.urls.service_url("ostrovok"), "ostrovok"))
             if brief.city or brief.route_to:
-                buttons.append(Button("✈️ Билеты в город", self.urls.service_url("aviasales"), "aviasales"))
+                buttons.append(Button("✈️ Билеты", self.urls.service_url("aviasales"), "aviasales"))
 
         elif genre in ["event_trip", "concert_trip", "activities_post", "weekend_activity"]:
             official = self._official_non_telegram_source(brief)
             if official:
                 buttons.append(Button("🎟 Открыть событие", official, "source"))
-            buttons.append(Button("🗺 Экскурсии и активности", self.urls.service_url("trip_activities") or self.urls.service_url("sputnik8"), "activities"))
+            buttons.append(Button("🗺 Экскурсии и активности", self.urls.service_url("sputnik8") or self.urls.service_url("trip_activities"), "activities"))
             if brief.city or brief.route_to:
                 buttons.append(Button("✈️ Билеты в город", self.urls.service_url("aviasales"), "aviasales"))
 

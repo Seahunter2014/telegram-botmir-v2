@@ -1,5 +1,7 @@
 import logging
 import re
+from collections import defaultdict, deque
+from typing import Iterable
 import requests
 from bs4 import BeautifulSoup
 from .config_loader import read_json
@@ -8,72 +10,137 @@ from .text_utils import clean_text, hash_text
 
 log = logging.getLogger(__name__)
 
+# Редакционный цикл для /test N: тесты должны показывать разные типы тем,
+# а не первые несколько постов одного источника.
+TEST_GENRE_CYCLE = [
+    "destination_post",
+    "flight_deal",
+    "practical_travel",
+    "event_trip",
+    "tour_offer",
+    "hotel_post",
+    "weekend_trip",
+    "visa_or_residence",
+    "activities_post",
+    "inspiration_story",
+]
+
+
 class SourceManager:
-    def __init__(self, state=None):
+    def __init__(self):
         self.sources = read_json("sources.json", [])
         self.fallback_signals = read_json("fallback_signals.json", [])
-        self.state = state
 
     def list_sources(self) -> list[dict]:
         return self.sources
 
     def fetch_signals(self, limit_per_source: int = 3, include_fallback: bool = False) -> list[Signal]:
-        signals: list[Signal] = []
-        active_sources = [s for s in self.sources if s.get("mode") != "manual"]
-        if not active_sources:
-            return self._fallback() if include_fallback else []
-        cursor = 0
-        if self.state:
-            cursor = int(self.state.get("source_cursor", 0) or 0) % len(active_sources)
-            self.state.set("source_cursor", (cursor + 1) % len(active_sources))
-        rotated_sources = active_sources[cursor:] + active_sources[:cursor]
-        for source in rotated_sources:
+        """
+        Returns signals in an editorial round-robin order by source.
+
+        IMPORTANT: the old version returned all Vandrouki posts first, then the next source.
+        That broke the TZ: tests and autoposting could get stuck on one source/genre.
+        Now we fetch buckets by source and interleave them:
+        source1 post1, source2 post1, source3 post1, ..., source1 post2, source2 post2...
+        """
+        buckets: list[list[Signal]] = []
+        for source in self.sources:
             if source.get("mode") == "manual":
                 continue
             try:
                 if source.get("method") == "telegram_public_html":
-                    fetched = self._fetch_telegram(source, limit_per_source)
+                    bucket = self._fetch_telegram(source, limit_per_source)
                 else:
-                    fetched = self._fetch_site(source, limit_per_source)
-                signals.extend(self._prioritize_new(source, fetched))
+                    bucket = self._fetch_site(source, limit_per_source)
+                if bucket:
+                    buckets.append(bucket)
             except Exception as exc:
                 log.warning("source failed %s: %s", source.get("key"), exc)
+
+        signals = self._round_robin(buckets)
+
         if include_fallback and not signals:
             signals.extend(self._fallback())
-        deduped = []
-        seen = set()
-        for signal in signals:
-            marker = signal.url or f"{signal.source_key}:{signal.title}"
-            if marker in seen:
-                continue
-            seen.add(marker)
-            deduped.append(signal)
-        return deduped
+        return signals
 
     def fetch_for_test(self, offset: int = 0, genre: str = "") -> Signal | None:
-        signals = self.fetch_signals(limit_per_source=5, include_fallback=True)
-        if genre:
-            genre = genre.strip().lower()
-            signals = [s for s in signals if genre in (" ".join(s.raw.get("genres", [])) + " " + s.text + " " + s.title).lower()]
+        """
+        Test mode must demonstrate DIFFERENT editorial scenarios.
+
+        /test 1, /test 2, /test 3 should not simply walk through the first
+        source. They should rotate sources and genres according to TEST_GENRE_CYCLE.
+        """
+        signals = self.fetch_signals(limit_per_source=6, include_fallback=True)
         if not signals:
             return None
-        idx = max(0, offset) % len(signals)
-        return signals[idx]
 
-    def _prioritize_new(self, source: dict, signals: list[Signal]) -> list[Signal]:
-        if not signals or not self.state:
-            return signals
-        memory = (self.state.get("source_memory", {}) or {}).get(source.get("key", ""), {})
-        last_url = memory.get("url", "")
-        published_urls = set(self.state.get("published_urls", []))
+        # Keep only distinct URLs/titles to avoid repeated topics.
+        signals = self._dedupe_signals(signals)
 
-        def sort_key(signal: Signal):
-            return (
-                1 if signal.url == last_url else 0,
-                1 if signal.url in published_urls else 0,
-            )
+        genre = (genre or "").strip().lower()
+        if genre:
+            filtered = [s for s in signals if self._matches_genre_hint(s, genre)]
+            return filtered[max(0, offset) % len(filtered)] if filtered else None
 
-        return sorted(signals, key=sort_key)
+        # For numeric /test N use a genre cycle first.
+        target_genre = TEST_GENRE_CYCLE[max(0, offset) % len(TEST_GENRE_CYCLE)]
+        matching = [s for s in signals if self._matches_genre_hint(s, target_genre)]
+        if matching:
+            # Also rotate within same genre if there are many matching items.
+            return matching[(max(0, offset) // len(TEST_GENRE_CYCLE)) % len(matching)]
+
+        # Fallback: return N-th signal from already source-diversified list.
+        return signals[max(0, offset) % len(signals)]
+
+    def _round_robin(self, buckets: list[list[Signal]]) -> list[Signal]:
+        queues = [deque(bucket) for bucket in buckets if bucket]
+        result: list[Signal] = []
+        while any(queues):
+            for q in queues:
+                if q:
+                    result.append(q.popleft())
+        return result
+
+    def _dedupe_signals(self, signals: list[Signal]) -> list[Signal]:
+        seen: set[str] = set()
+        result: list[Signal] = []
+        for signal in signals:
+            fp = signal.url or hash_text(signal.title + "\n" + signal.text[:300])
+            if fp in seen:
+                continue
+            seen.add(fp)
+            result.append(signal)
+        return result
+
+    def _matches_genre_hint(self, signal: Signal, genre: str) -> bool:
+        haystack = " ".join([
+            signal.title,
+            signal.text,
+            " ".join(signal.raw.get("genres", [])),
+            " ".join(signal.raw.get("source", {}).get("genres", [])),
+        ]).lower()
+        g = genre.lower()
+        if g in haystack:
+            return True
+        if g == "flight_deal":
+            return any(w in haystack for w in ["рейс", "перел", "билет", "авиа", "₽", "руб"])
+        if g == "tour_offer":
+            return any(w in haystack for w in ["тур", "all inclusive", "все включ", "пакет"])
+        if g == "hotel_post":
+            return any(w in haystack for w in ["отель", "гостиниц", "resort", "villa", "вилла"])
+        if g == "event_trip":
+            return any(w in haystack for w in ["концерт", "фестиваль", "выстав", "событ", "билет на событие"])
+        if g == "practical_travel":
+            return any(w in haystack for w in ["багаж", "аэропорт", "пересад", "страхов", "лайфхак", "ручная кладь"])
+        if g == "visa_or_residence":
+            return any(w in haystack for w in ["виза", "внж", "границ", "паспорт", "консуль", "документ"])
+        if g == "destination_post":
+            return any(w in haystack for w in ["город", "маршрут", "куда поехать", "путеше", "мест", "пляж", "море"])
+        if g == "weekend_trip":
+            return any(w in haystack for w in ["выходн", "2 дня", "3 дня", "уикенд", "weekend"])
+        if g == "inspiration_story":
+            return any(w in haystack for w in ["красив", "атмосфер", "закат", "место", "вдохнов"])
+        return False
 
     def _fetch_telegram(self, source: dict, limit: int) -> list[Signal]:
         url = source["url"]
@@ -91,15 +158,12 @@ class SourceManager:
             link_el = msg.select_one("a.tgme_widget_message_date")
             link = link_el.get("href", "") if link_el else url
             title = text[:110]
-            media_url = ""
-            photo = msg.select_one("a.tgme_widget_message_photo_wrap")
-            if photo and photo.get("style"):
-                m = re.search(r"url\('([^']+)'\)", photo.get("style"))
-                media_url = m.group(1) if m else ""
+            # Не доверяем Telegram preview-photo как финальному медиа: media_engine сам решает,
+            # брать ли фото, искать Pexels или публиковать без картинки.
             result.append(Signal(
                 id=hash_text(source["key"] + link + title),
                 source_key=source["key"], source_name=source["name"], source_url=url,
-                title=title, text=text, url=link, media_url=media_url,
+                title=title, text=text, url=link, media_url="",
                 published_at="", raw={"source": source, "genres": source.get("genres", [])}
             ))
         return result
@@ -109,7 +173,6 @@ class SourceManager:
         html = requests.get(url, timeout=12, headers={"User-Agent": "Mozilla/5.0"}).text
         soup = BeautifulSoup(html, "lxml")
         result = []
-        seen = set()
         for a in soup.find_all("a", href=True):
             text = clean_text(a.get_text(" "))
             if len(text) < 25:
@@ -120,9 +183,6 @@ class SourceManager:
                 href = (base.group(0) if base else "") + href
             if not href.startswith("http"):
                 continue
-            if href in seen or href.startswith("javascript:") or "#" in href:
-                continue
-            seen.add(href)
             result.append(Signal(
                 id=hash_text(source["key"] + href + text),
                 source_key=source["key"], source_name=source["name"], source_url=url,

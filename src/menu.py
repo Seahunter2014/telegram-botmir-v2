@@ -9,22 +9,6 @@ def main_menu() -> InlineKeyboardMarkup:
     ])
 
 
-def schedule_menu() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("✍️ Изменить расписание", callback_data="menu:edit_schedule")],
-        [InlineKeyboardButton("⬅️ Назад", callback_data="menu:back")],
-    ])
-
-
-def channels_menu() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup([
-        [InlineKeyboardButton("➕ Добавить канал", callback_data="menu:add_channel")],
-        [InlineKeyboardButton("♻️ Заменить список", callback_data="menu:set_channels")],
-        [InlineKeyboardButton("🧪 Тест-канал", callback_data="menu:set_test_channel")],
-        [InlineKeyboardButton("⬅️ Назад", callback_data="menu:back")],
-    ])
-
-
 def draft_keyboard(session_id: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("✅ Опубликовать 1", callback_data=f"pub:{session_id}:1")],

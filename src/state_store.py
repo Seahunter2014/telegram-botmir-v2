@@ -11,7 +11,6 @@ DEFAULT_STATE = {
     "test_channel": "",
     "source_cursor": 0,
     "test_cursor": 0,
-    "last_session_id": "",
     "published_urls": [],
     "published_titles": [],
     "published_text_hashes": [],
@@ -25,8 +24,7 @@ DEFAULT_STATE = {
     "rejected_topics": [],
     "draft_sessions": {},
     "last_skip_reason": "",
-    "analytics": [],
-    "source_memory": {}
+    "analytics": []
 }
 
 class StateStore:
@@ -82,7 +80,6 @@ class StateStore:
         data = self.load()
         sessions = data.setdefault("draft_sessions", {})
         sessions[session_id] = payload
-        data["last_session_id"] = session_id
         # keep last 20 sessions
         if len(sessions) > 20:
             for key in list(sessions.keys())[:-20]:
@@ -91,24 +88,3 @@ class StateStore:
 
     def get_draft_session(self, session_id: str) -> dict[str, Any] | None:
         return self.load().get("draft_sessions", {}).get(session_id)
-
-    def latest_session_id(self) -> str:
-        return self.get("last_session_id", "")
-
-    def append_json_list(self, filename: str, payload: dict[str, Any], limit: int = 500) -> None:
-        path = DATA_DIR / filename
-        try:
-            current = json.loads(path.read_text(encoding="utf-8")) if path.exists() else []
-            if not isinstance(current, list):
-                current = []
-        except Exception:
-            current = []
-        current.append(payload)
-        path.write_text(json.dumps(current[-limit:], ensure_ascii=False, indent=2), encoding="utf-8")
-
-    def remember_source_pick(self, source_key: str, url: str = "", title: str = "") -> None:
-        data = self.load()
-        memory = data.setdefault("source_memory", {})
-        memory[source_key] = {"url": url, "title": title, "ts": int(time.time())}
-        data["source_memory"] = memory
-        self.save(data)
