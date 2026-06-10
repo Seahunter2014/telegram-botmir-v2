@@ -1,3 +1,15 @@
 {
-  "events": []
+  "events": [
+    {
+      "time": "2026-06-10T12:07:09",
+      "event": "published",
+      "payload": {
+        "title": "🧳 Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий ",
+        "genre": "practical_travel",
+        "channels": [
+          "@dry_run"
+        ]
+      }
+    }
+  ]
 }
