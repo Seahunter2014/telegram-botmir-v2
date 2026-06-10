@@ -10,6 +10,17 @@
           "@dry_run"
         ]
       }
+    },
+    {
+      "time": "2026-06-10T13:47:30",
+      "event": "published",
+      "payload": {
+        "title": "Тестовый пост OpenAI",
+        "genre": "practical_travel",
+        "channels": [
+          "@dry_run"
+        ]
+      }
     }
   ]
 }

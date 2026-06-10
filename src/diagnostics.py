@@ -55,6 +55,7 @@ class RunReport:
             f"После travel-фильтра: {c.get('after_guard', 0)}",
             f"После дедупликации: {c.get('after_dedup', 0)}",
             f"Кандидатов для GPT: {c.get('candidates', 0)}",
+            f"OpenAI: {'OK' if c.get('openai_ok') else ('ERROR' if c.get('openai_error') else 'не проверен')}",
             f"GPT: {c.get('gpt_variants', 0)} вариантов",
             f"Медиа: {c.get('media', 0)}",
             f"Публикация: {c.get('published', 0)}",

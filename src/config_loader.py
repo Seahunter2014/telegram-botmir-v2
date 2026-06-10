@@ -84,7 +84,7 @@ def load_settings() -> Settings:
         schedule_timezone=env("SCHEDULE_TIMEZONE", "Europe/Moscow"),
         allow_fallback_autopublish=env("ALLOW_FALLBACK_AUTOPUBLISH", "true").lower() in {"1", "true", "yes", "on"},
         channel_public_url=env("TELEGRAM_CHANNEL_URL"),
-        local_writer_fallback=env("LOCAL_WRITER_FALLBACK", "true").lower() in {"1", "true", "yes", "on"},
+        local_writer_fallback=env("LOCAL_WRITER_FALLBACK", "false").lower() in {"1", "true", "yes", "on"},
     )
 
 
@@ -98,4 +98,6 @@ def required_env_missing(settings: Settings) -> list[str]:
         missing.append("TELEGRAM_CHANNEL_ID")
     if not settings.test_channel_id:
         missing.append("TEST_CHANNEL_ID")
+    if not settings.openai_api_key:
+        missing.append("OPENAI_API_KEY")
     return missing

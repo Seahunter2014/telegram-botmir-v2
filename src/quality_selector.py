@@ -47,5 +47,6 @@ class QualitySelector:
             return None, []
         best = scored[0]
         if best.score < self.min_score:
-            best.warnings.append(f"качество ниже {self.min_score}, но вариант выбран как лучший доступный")
+            best.warnings.append(f"качество ниже {self.min_score}, пост отклонён")
+            return None, scored
         return best, scored

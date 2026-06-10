@@ -21,28 +21,29 @@ def _as_list(value: Any) -> list:
 
 
 class AIWriter:
-    def __init__(self, client: OpenAIClient | None = None, local_fallback: bool = True):
+    def __init__(self, client: OpenAIClient | None = None, local_fallback: bool = False):
         self.client = client
-        self.local_fallback = local_fallback
-        self.system_prompt = load_text(PROMPTS_DIR / "system_editor_ru.md")
-        self.writer_prompt = load_text(PROMPTS_DIR / "writer_3_variants_ru.md")
+        # Локальный генератор намеренно отключён: без OpenAI бот не должен публиковать шаблонные посты.
+        self.local_fallback = False
+        self.system_prompt = "Ты — главный редактор travel Telegram-канала «Мир на ладони». Строго следуй master prompt и возвращай только валидный JSON."
+        self.master_prompt = load_text(PROMPTS_DIR / "master_writer_ru.md")
 
     async def generate(self, brief: Brief) -> tuple[list[PostVariant], int, list[str]]:
         warnings: list[str] = []
-        if self.client:
-            prompt = self._build_prompt(brief)
-            data = await self.client.generate_json(self.system_prompt, prompt)
-            variants = self._parse_response(data)
-            if variants:
-                best = int((data or {}).get("best_variant_id") or variants[0].variant_id)
-                return variants, best, warnings
-            warnings.append("OpenAI не вернул валидные варианты, использован локальный генератор")
-        if self.local_fallback:
-            return self._local_generate(brief), 1, warnings
-        return [], 0, warnings + ["нет вариантов"]
+        if not self.client:
+            return [], 0, ["OpenAI не настроен. Нужен OPENAI_API_KEY и доступная модель. Локальный генератор отключён."]
+        prompt = self._build_prompt(brief)
+        data = await self.client.generate_json(self.system_prompt, prompt)
+        variants = self._parse_response(data)
+        if variants:
+            best = int((data or {}).get("best_variant_id") or variants[0].variant_id)
+            return variants, best, warnings
+        err = getattr(self.client, "last_error", "нет данных об ошибке")
+        warnings.append(f"OpenAI не вернул валидный пост: {err}. Локальный генератор отключён.")
+        return [], 0, warnings
 
     def _build_prompt(self, brief: Brief) -> str:
-        return self.writer_prompt + "\n\nBRIEF:\n" + json.dumps(brief.to_dict(), ensure_ascii=False, indent=2)
+        return self.master_prompt + "\n\nBRIEF ДЛЯ ТЕКУЩЕГО ПОСТА:\n" + json.dumps(brief.to_dict(), ensure_ascii=False, indent=2)
 
     def _parse_response(self, data: dict[str, Any] | None) -> list[PostVariant]:
         if not isinstance(data, dict):
@@ -61,7 +62,7 @@ class AIWriter:
                 variants.append(PostVariant.from_dict(raw))
             except Exception:
                 continue
-        return variants[:3]
+        return variants[:1]
 
     def _local_generate(self, brief: Brief) -> list[PostVariant]:
         title_base = self._title(brief)

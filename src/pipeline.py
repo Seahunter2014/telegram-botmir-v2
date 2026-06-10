@@ -125,11 +125,13 @@ class EditorialPipeline:
         variants, best_id, writer_warnings = await self.writer.generate(brief)
         report.count("gpt_variants", len(variants))
         if writer_warnings:
-            report.step("ai_writer.generate", "warning", writer_warnings)
+            report.count("openai_error", 1)
+            report.step("ai_writer.generate", "error", writer_warnings)
         else:
-            report.step("ai_writer.generate", "ok", len(variants))
+            report.count("openai_ok", 1)
+            report.step("ai_writer.generate", "ok", {"provider": "OpenAI", "variants": len(variants)})
         if not variants:
-            report.finish("error", "GPT/локальный генератор не выдал варианты")
+            report.finish("error", "OpenAI не выдал валидный пост. Локальный генератор отключён, публикации не будет.")
             return None, report
 
         processed: list[PostVariant] = []
@@ -140,7 +142,7 @@ class EditorialPipeline:
             processed.append(v)
         best, scored = self.quality.choose(processed, brief)
         if not best:
-            report.finish("error", "Quality gate не выбрал вариант")
+            report.finish("error", "Quality gate отклонил пост ниже минимального качества")
             return None, report
         media = self.media.find_or_generate(brief, best)
         report.count("media", 1 if media and (media.path or media.url) else 0)

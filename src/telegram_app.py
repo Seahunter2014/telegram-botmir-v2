@@ -203,7 +203,7 @@ async def test_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     idx = 0
     if context.args and context.args[0].isdigit():
         idx = int(context.args[0])
-    await update.message.reply_text("Ищу тему и готовлю 3 варианта…")
+    await update.message.reply_text("Ищу тему и готовлю лучший пост через OpenAI…")
     pipeline = EditorialPipeline(settings, bot=context.bot)
     prepared, report = await pipeline.prepare_post(test_index=idx)
     if not prepared:
@@ -218,10 +218,10 @@ async def test_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     )
     await update.message.reply_text(header)
     buttons=[]
-    for v in prepared.variants[:3]:
+    for v in prepared.variants[:1]:
         preview = writer.preview(v, prepared.brief)
-        await update.message.reply_text(f"Вариант {v.variant_id} · {v.style} · качество {v.score}/100\n\n{preview[:3500]}", parse_mode="HTML", disable_web_page_preview=True)
-        buttons.append([InlineKeyboardButton(f"Опубликовать {v.variant_id}", callback_data=f"publish:{prepared.session_id}:{v.variant_id}")])
+        await update.message.reply_text(f"Пост · {v.style} · качество {v.score}/100\n\n{preview[:3500]}", parse_mode="HTML", disable_web_page_preview=True)
+        buttons.append([InlineKeyboardButton("Опубликовать", callback_data=f"publish:{prepared.session_id}:{v.variant_id}")])
     buttons.append([InlineKeyboardButton("Переписать", callback_data=f"rewrite:{idx+1}"), InlineKeyboardButton("Отклонить", callback_data=f"reject:{prepared.session_id}")])
     await update.message.reply_text("Выберите действие:", reply_markup=InlineKeyboardMarkup(buttons))
 
