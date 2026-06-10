@@ -2,69 +2,40 @@ from __future__ import annotations
 
 import re
 
-from .config_loader import read_json
-from .text_utils import extract_date_text, extract_price
-
-CITY_WORDS = None
-
-
-def _city_words() -> list[str]:
-    global CITY_WORDS
-    if CITY_WORDS is None:
-        cities = read_json("cities_iata.json", {})
-        aliases = read_json("city_aliases.json", {})
-        words = set(cities.keys()) | set(aliases.keys())
-        CITY_WORDS = sorted(words, key=len, reverse=True)
-    return CITY_WORDS
+from .config_loader import CONFIG_DIR, load_json
+from .models import Signal
+from .text_utils import extract_dates, extract_price, semantic_fingerprint
 
 
-def normalize_city(raw: str) -> str:
-    raw_norm = (raw or "").strip().lower().replace("ё", "е")
-    raw_norm = re.sub(r"\s+", " ", raw_norm)
-    raw_norm = raw_norm.strip(" .,:;!?)('«»\"")
-    aliases = read_json("city_aliases.json", {})
-    if raw_norm in aliases:
-        return aliases[raw_norm]
-    cities = read_json("cities_iata.json", {})
-    for city in cities:
-        if city.lower().replace("ё", "е") == raw_norm:
-            return city
-    return ""
+class SignalExtractor:
+    def __init__(self):
+        self.cities = load_json(CONFIG_DIR / "cities_iata.json", default={})
+        self.aliases = load_json(CONFIG_DIR / "city_aliases.json", default={})
+        self.countries = ["Турция", "Грузия", "Армения", "ОАЭ", "Марокко", "Италия", "Франция", "Испания", "Греция", "Кипр", "Таиланд", "Вьетнам", "Россия", "Европа", "Сербия", "Азербайджан"]
 
+    def enrich(self, signal: Signal) -> Signal:
+        text = f"{signal.title}\n{signal.text}"
+        signal.price = signal.price or extract_price(text)
+        signal.dates = signal.dates or extract_dates(text)
+        signal.city = signal.city or self._find_city(text)
+        signal.country = signal.country or self._find_country(text)
+        signal.semantic_hash = signal.semantic_hash or semantic_fingerprint(signal.title, signal.city, signal.country, signal.genre)
+        return signal
 
-def extract_route(text: str) -> tuple[str, str]:
-    cleaned = (text or "").replace("—", "-").replace("–", "-").replace("→", "-")
-    cities = _city_words()
+    def _find_city(self, text: str) -> str:
+        lower = text.lower()
+        for alias, city in self.aliases.items():
+            if alias.lower() in lower:
+                return city
+        for city in self.cities:
+            if re.search(rf"\b{re.escape(city)}\b", text, re.I):
+                return city
+        return ""
 
-    # Explicit route: Нижний — Минск / Москва - Стамбул.
-    for a in cities:
-        for b in cities:
-            if a == b:
-                continue
-            pattern = rf"(?<![А-Яа-яЁёA-Za-z]){re.escape(a)}(?![А-Яа-яЁёA-Za-z])\s*-\s*(?<![А-Яа-яЁёA-Za-z]){re.escape(b)}(?![А-Яа-яЁёA-Za-z])"
-            if re.search(pattern, cleaned, flags=re.IGNORECASE):
-                aa = normalize_city(a)
-                bb = normalize_city(b)
-                if aa and bb and aa != bb:
-                    return aa, bb
-
-    # из Нижнего Новгорода в Минск / из Москвы до Стамбула.
-    m = re.search(r"из\s+([А-Яа-яЁё\- ]{3,32})\s+(?:в|до)\s+([А-Яа-яЁё\- ]{3,32})", text or "", re.I)
-    if m:
-        a = normalize_city(m.group(1))
-        b = normalize_city(m.group(2))
-        if a and b and a != b:
-            return a, b
-
-    return "", ""
-
-
-def enrich_signal(signal):
-    text = f"{signal.title}\n{signal.text}"
-    route_from, route_to = extract_route(text)
-    return {
-        "route_from": route_from,
-        "route_to": route_to,
-        "price": extract_price(text),
-        "date_text": extract_date_text(text),
-    }
+    def _find_country(self, text: str) -> str:
+        for country in self.countries:
+            if re.search(rf"\b{re.escape(country)}\b", text, re.I):
+                return country
+        if "европ" in text.lower():
+            return "Европа"
+        return ""

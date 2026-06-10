@@ -1,90 +1,55 @@
-import json
+from __future__ import annotations
+
 import time
 from pathlib import Path
 from typing import Any
-from .config_loader import DATA_DIR, env
 
-DEFAULT_STATE = {
-    "autopost_enabled": False,
-    "schedule_times": ["09:00", "14:00", "19:00"],
-    "channels": [],
-    "test_channel": "",
-    "source_cursor": 0,
-    "test_cursor": 0,
-    "published_urls": [],
-    "published_titles": [],
-    "published_text_hashes": [],
-    "published_topics": [],
-    "published_genres": [],
-    "published_countries": [],
-    "published_cities": [],
-    "published_sources": [],
-    "last_slot": "",
-    "last_cta_type": "",
-    "rejected_topics": [],
-    "draft_sessions": {},
-    "last_skip_reason": "",
-    "analytics": []
-}
+from .config_loader import DATA_DIR, load_json, save_json
+
 
 class StateStore:
     def __init__(self, path: Path | None = None):
         self.path = path or (DATA_DIR / "state.json")
-        self.path.parent.mkdir(parents=True, exist_ok=True)
-        if not self.path.exists():
-            self.save(DEFAULT_STATE.copy())
-        self.bootstrap_env_channels()
 
     def load(self) -> dict[str, Any]:
-        try:
-            data = json.loads(self.path.read_text(encoding="utf-8"))
-        except Exception:
-            data = DEFAULT_STATE.copy()
-        merged = DEFAULT_STATE.copy()
-        merged.update(data)
-        return merged
+        return load_json(self.path, default={})
 
     def save(self, data: dict[str, Any]) -> None:
-        self.path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        save_json(self.path, data)
 
-    def get(self, key: str, default=None):
+    def get(self, key: str, default: Any = None) -> Any:
         return self.load().get(key, default)
 
-    def set(self, key: str, value) -> None:
+    def set(self, key: str, value: Any) -> None:
         data = self.load()
         data[key] = value
         self.save(data)
 
-    def append_unique(self, key: str, value, limit: int = 500) -> None:
+    def append_publication(self, item: dict[str, Any]) -> None:
+        data = load_json(DATA_DIR / "publication_log.json", default=[])
+        data.append(item)
+        save_json(DATA_DIR / "publication_log.json", data[-500:])
+
+    def publications(self) -> list[dict[str, Any]]:
+        return load_json(DATA_DIR / "publication_log.json", default=[])
+
+    def save_session(self, session: dict[str, Any]) -> None:
         data = self.load()
-        arr = data.setdefault(key, [])
-        if value and value not in arr:
-            arr.append(value)
-        data[key] = arr[-limit:]
+        sessions = data.setdefault("sessions", {})
+        sessions[session["session_id"]] = session
         self.save(data)
 
-    def bootstrap_env_channels(self) -> None:
-        data = self.load()
-        main = env("TELEGRAM_CHANNEL_ID")
-        test = env("TEST_CHANNEL_ID") or main
-        if main and main not in data.get("channels", []):
-            data.setdefault("channels", []).append(main)
-        if test:
-            data["test_channel"] = data.get("test_channel") or test
-        self.save(data)
+    def get_session(self, session_id: str) -> dict[str, Any] | None:
+        return self.load().get("sessions", {}).get(session_id)
 
     def new_session_id(self) -> str:
-        return str(int(time.time() * 1000))[-10:]
+        return f"s{int(time.time()*1000)}"
 
-    def store_draft_session(self, session_id: str, payload: dict[str, Any]) -> None:
+    def channels(self, fallback: str = "") -> list[str]:
         data = self.load()
-        sessions = data.setdefault("draft_sessions", {})
-        sessions[session_id] = payload
-        # keep last 20 sessions
-        if len(sessions) > 20:
-            for key in list(sessions.keys())[:-20]:
-                sessions.pop(key, None)
-        self.save(data)
-
-    def get_draft_session(self, session_id: str) -> dict[str, Any] | None:
-        return self.load().get("draft_sessions", {}).get(session_id)
+        channels = data.get("channels") or []
+        if isinstance(channels, str):
+            channels = [channels]
+        if not channels and fallback:
+            channels = [fallback]
+        return [c for c in channels if c]

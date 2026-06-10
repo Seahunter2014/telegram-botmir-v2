@@ -1,30 +1,38 @@
+from __future__ import annotations
+
 from .models import Signal
-from .text_utils import extract_price, extract_date_text
+
 
 class ScoringEngine:
-    def score(self, signal: Signal, genre: str, slot: str) -> tuple[int, list[str]]:
-        text = f"{signal.title}\n{signal.text}"
-        warnings = []
-        score = 40
-        if signal.url:
-            score += 8
-        if len(text) > 120:
-            score += 8
-        if extract_price(text):
-            score += 12
-        if extract_date_text(text):
-            score += 8
-        if any(w in text.lower() for w in ["море", "пляж", "город", "маршрут", "отель", "рейс", "билет", "виза", "багаж"]):
+    def score(self, signal: Signal, current_slot: str = "") -> Signal:
+        text = f"{signal.title} {signal.text}"
+        score = 20  # свежесть по умолчанию для свежего источника/fallback
+        score += min(20, 5 + len(text) // 80)
+        if signal.city or signal.country:
             score += 10
-        if genre in self.slot_genres(slot):
+        if signal.price or signal.dates:
+            score += 8
+        if any(x in text.lower() for x in ["россиян", "из моск", "виза", "карты", "руб", "прям", "стыков"]):
+            score += 15
+        else:
+            score += 7
+        if any(x in text.lower() for x in ["море", "пляж", "горы", "город", "музей", "еда", "вид", "марокко", "европ"]):
             score += 10
         else:
-            warnings.append("Жанр не идеален для текущего слота, но может быть использован при отсутствии лучшей темы.")
-        return min(score, 100), warnings
-
-    def slot_genres(self, slot: str) -> list[str]:
-        if slot == "morning":
-            return ["destination_post", "hidden_places", "city_break", "weekend_trip", "beach_trip", "mountain_trip", "gastronomy_trip", "inspiration_story"]
-        if slot == "day":
-            return ["flight_deal", "tour_offer", "hotel_post", "premium_hotel", "last_minute", "family_trip", "event_trip", "weekend_activity"]
-        return ["practical_travel", "travel_hack", "visa_or_residence", "relocation", "payment_abroad", "airport_lounge", "insurance_tip", "concert_trip", "discussion_post"]
+            score += 5
+        if signal.genre in {"practical_travel", "travel_hack", "visa_or_residence", "payment_abroad", "top_list", "route"}:
+            score += 10
+        else:
+            score += 6
+        if signal.genre in {"top_list", "route", "inspiration_story", "destination_post", "discussion_post"}:
+            score += 10
+        else:
+            score += 6
+        if signal.genre in {"flight_deal", "tour_offer", "hotel_post", "event_trip", "destination_post", "weekend_trip"}:
+            score += 10
+        else:
+            score += 3
+        if current_slot and signal.slot == current_slot:
+            score += 5
+        signal.score = max(0, min(100, score))
+        return signal

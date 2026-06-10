@@ -1,205 +1,154 @@
-import logging
+from __future__ import annotations
+
+import asyncio
 import re
-from collections import defaultdict, deque
-from typing import Iterable
+from typing import Any
+from urllib.parse import urljoin
+
 import requests
 from bs4 import BeautifulSoup
-from .config_loader import read_json
+
 from .models import Signal
-from .text_utils import clean_text, hash_text
-
-log = logging.getLogger(__name__)
-
-# Редакционный цикл для /test N: тесты должны показывать разные типы тем,
-# а не первые несколько постов одного источника.
-TEST_GENRE_CYCLE = [
-    "destination_post",
-    "flight_deal",
-    "practical_travel",
-    "event_trip",
-    "tour_offer",
-    "hotel_post",
-    "weekend_trip",
-    "visa_or_residence",
-    "activities_post",
-    "inspiration_story",
-]
+from .source_registry import SourceRegistry
+from .source_health import SourceHealthStore
+from .text_utils import clean_text, normalize_spaces, now_iso, semantic_fingerprint, stable_hash
 
 
 class SourceManager:
-    def __init__(self):
-        self.sources = read_json("sources.json", [])
-        self.fallback_signals = read_json("fallback_signals.json", [])
+    def __init__(self, registry: SourceRegistry | None = None, health: SourceHealthStore | None = None):
+        self.registry = registry or SourceRegistry()
+        self.health = health or SourceHealthStore()
+        self.headers = {"User-Agent": "Mozilla/5.0 MirNaLadoniBot/6.2 (+https://t.me/NadoTurKrd)"}
 
-    def list_sources(self) -> list[dict]:
-        return self.sources
+    async def collect(self, limit_per_source: int = 4, total_timeout: int = 28) -> tuple[list[Signal], dict[str, str]]:
+        import os
+        if os.getenv("MIRNALA_SKIP_SOURCE_FETCH", "").lower() in {"1", "true", "yes"}:
+            return [], {"sources": "source fetch skipped by MIRNALA_SKIP_SOURCE_FETCH"}
+        sources = self.registry.active_sources()
+        tasks = [self._fetch_source_async(src, limit_per_source) for src in sources]
+        try:
+            results = await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=total_timeout)
+        except asyncio.TimeoutError:
+            results = []
+            errors = {s.get("key", "unknown"): "общий таймаут сбора источников" for s in sources}
+            for k, e in errors.items():
+                self.health.update(k, False, 0, e)
+            return [], errors
 
-    def fetch_signals(self, limit_per_source: int = 3, include_fallback: bool = False) -> list[Signal]:
-        """
-        Returns signals in an editorial round-robin order by source.
+        per_source: list[list[Signal]] = []
+        errors: dict[str, str] = {}
+        health_payload: dict[str, dict[str, Any]] = {}
+        for src, result in zip(sources, results):
+            key = src.get("key", "unknown")
+            if isinstance(result, Exception):
+                errors[key] = str(result)
+                health_payload[key] = {"ok": False, "count": 0, "error": str(result)}
+                per_source.append([])
+            else:
+                signals, err = result
+                if err:
+                    errors[key] = err
+                health_payload[key] = {"ok": bool(signals), "count": len(signals), "error": err}
+                per_source.append(signals)
+        self.health.bulk_update(health_payload)
+        return self._round_robin(per_source), errors
 
-        IMPORTANT: the old version returned all Vandrouki posts first, then the next source.
-        That broke the TZ: tests and autoposting could get stuck on one source/genre.
-        Now we fetch buckets by source and interleave them:
-        source1 post1, source2 post1, source3 post1, ..., source1 post2, source2 post2...
-        """
-        buckets: list[list[Signal]] = []
-        for source in self.sources:
-            if source.get("mode") == "manual":
-                continue
-            try:
-                if source.get("method") == "telegram_public_html":
-                    bucket = self._fetch_telegram(source, limit_per_source)
-                else:
-                    bucket = self._fetch_site(source, limit_per_source)
-                if bucket:
-                    buckets.append(bucket)
-            except Exception as exc:
-                log.warning("source failed %s: %s", source.get("key"), exc)
+    async def _fetch_source_async(self, src: dict, limit: int) -> tuple[list[Signal], str]:
+        return await asyncio.to_thread(self._fetch_source, src, limit)
 
-        signals = self._round_robin(buckets)
+    def _fetch_source(self, src: dict, limit: int) -> tuple[list[Signal], str]:
+        url = self._normalize_url(src.get("url", ""), src.get("type", ""))
+        timeout = int(src.get("timeout", 8) or 8)
+        try:
+            r = requests.get(url, timeout=timeout, headers=self.headers)
+            r.raise_for_status()
+            html = r.text
+        except Exception as exc:
+            return [], f"{type(exc).__name__}: {exc}"
+        try:
+            if src.get("type") == "telegram":
+                signals = self._parse_telegram(src, url, html, limit)
+            else:
+                signals = self._parse_site(src, url, html, limit)
+            return signals, "" if signals else "нет пригодных сигналов"
+        except Exception as exc:
+            return [], f"parse {type(exc).__name__}: {exc}"
 
-        if include_fallback and not signals:
-            signals.extend(self._fallback())
-        return signals
+    def _normalize_url(self, url: str, source_type: str) -> str:
+        if source_type == "telegram" and "t.me/" in url and "/s/" not in url:
+            return url.replace("https://t.me/", "https://t.me/s/").replace("http://t.me/", "https://t.me/s/")
+        return url
 
-    def fetch_for_test(self, offset: int = 0, genre: str = "") -> Signal | None:
-        """
-        Test mode must demonstrate DIFFERENT editorial scenarios.
-
-        /test 1, /test 2, /test 3 should not simply walk through the first
-        source. They should rotate sources and genres according to TEST_GENRE_CYCLE.
-        """
-        signals = self.fetch_signals(limit_per_source=6, include_fallback=True)
-        if not signals:
-            return None
-
-        # Keep only distinct URLs/titles to avoid repeated topics.
-        signals = self._dedupe_signals(signals)
-
-        genre = (genre or "").strip().lower()
-        if genre:
-            filtered = [s for s in signals if self._matches_genre_hint(s, genre)]
-            return filtered[max(0, offset) % len(filtered)] if filtered else None
-
-        # For numeric /test N use a genre cycle first.
-        target_genre = TEST_GENRE_CYCLE[max(0, offset) % len(TEST_GENRE_CYCLE)]
-        matching = [s for s in signals if self._matches_genre_hint(s, target_genre)]
-        if matching:
-            # Also rotate within same genre if there are many matching items.
-            return matching[(max(0, offset) // len(TEST_GENRE_CYCLE)) % len(matching)]
-
-        # Fallback: return N-th signal from already source-diversified list.
-        return signals[max(0, offset) % len(signals)]
-
-    def _round_robin(self, buckets: list[list[Signal]]) -> list[Signal]:
-        queues = [deque(bucket) for bucket in buckets if bucket]
-        result: list[Signal] = []
-        while any(queues):
-            for q in queues:
-                if q:
-                    result.append(q.popleft())
-        return result
-
-    def _dedupe_signals(self, signals: list[Signal]) -> list[Signal]:
-        seen: set[str] = set()
-        result: list[Signal] = []
-        for signal in signals:
-            fp = signal.url or hash_text(signal.title + "\n" + signal.text[:300])
-            if fp in seen:
-                continue
-            seen.add(fp)
-            result.append(signal)
-        return result
-
-    def _matches_genre_hint(self, signal: Signal, genre: str) -> bool:
-        haystack = " ".join([
-            signal.title,
-            signal.text,
-            " ".join(signal.raw.get("genres", [])),
-            " ".join(signal.raw.get("source", {}).get("genres", [])),
-        ]).lower()
-        g = genre.lower()
-        if g in haystack:
-            return True
-        if g == "flight_deal":
-            return any(w in haystack for w in ["рейс", "перел", "билет", "авиа", "₽", "руб"])
-        if g == "tour_offer":
-            return any(w in haystack for w in ["тур", "all inclusive", "все включ", "пакет"])
-        if g == "hotel_post":
-            return any(w in haystack for w in ["отель", "гостиниц", "resort", "villa", "вилла"])
-        if g == "event_trip":
-            return any(w in haystack for w in ["концерт", "фестиваль", "выстав", "событ", "билет на событие"])
-        if g == "practical_travel":
-            return any(w in haystack for w in ["багаж", "аэропорт", "пересад", "страхов", "лайфхак", "ручная кладь"])
-        if g == "visa_or_residence":
-            return any(w in haystack for w in ["виза", "внж", "границ", "паспорт", "консуль", "документ"])
-        if g == "destination_post":
-            return any(w in haystack for w in ["город", "маршрут", "куда поехать", "путеше", "мест", "пляж", "море"])
-        if g == "weekend_trip":
-            return any(w in haystack for w in ["выходн", "2 дня", "3 дня", "уикенд", "weekend"])
-        if g == "inspiration_story":
-            return any(w in haystack for w in ["красив", "атмосфер", "закат", "место", "вдохнов"])
-        return False
-
-    def _fetch_telegram(self, source: dict, limit: int) -> list[Signal]:
-        url = source["url"]
-        html = requests.get(url, timeout=12, headers={"User-Agent": "Mozilla/5.0"}).text
+    def _parse_telegram(self, src: dict, url: str, html: str, limit: int) -> list[Signal]:
         soup = BeautifulSoup(html, "lxml")
-        messages = soup.select(".tgme_widget_message")[: max(limit, 1)]
-        result = []
-        for msg in messages:
+        messages = soup.select(".tgme_widget_message")
+        out: list[Signal] = []
+        for msg in messages[-30:]:
             text_el = msg.select_one(".tgme_widget_message_text")
             if not text_el:
                 continue
-            text = clean_text(text_el.get_text(" "))
-            if len(text) < 40:
+            text = clean_text(text_el.get_text("\n", strip=True))
+            if len(text) < 35:
                 continue
             link_el = msg.select_one("a.tgme_widget_message_date")
-            link = link_el.get("href", "") if link_el else url
-            title = text[:110]
-            # Не доверяем Telegram preview-photo как финальному медиа: media_engine сам решает,
-            # брать ли фото, искать Pexels или публиковать без картинки.
-            result.append(Signal(
-                id=hash_text(source["key"] + link + title),
-                source_key=source["key"], source_name=source["name"], source_url=url,
-                title=title, text=text, url=link, media_url="",
-                published_at="", raw={"source": source, "genres": source.get("genres", [])}
-            ))
-        return result
-
-    def _fetch_site(self, source: dict, limit: int) -> list[Signal]:
-        url = source["url"]
-        html = requests.get(url, timeout=12, headers={"User-Agent": "Mozilla/5.0"}).text
-        soup = BeautifulSoup(html, "lxml")
-        result = []
-        for a in soup.find_all("a", href=True):
-            text = clean_text(a.get_text(" "))
-            if len(text) < 25:
-                continue
-            href = a["href"]
-            if href.startswith("/"):
-                base = re.match(r"https?://[^/]+", url)
-                href = (base.group(0) if base else "") + href
-            if not href.startswith("http"):
-                continue
-            result.append(Signal(
-                id=hash_text(source["key"] + href + text),
-                source_key=source["key"], source_name=source["name"], source_url=url,
-                title=text[:120], text=text, url=href,
-                raw={"source": source, "genres": source.get("genres", [])}
-            ))
-            if len(result) >= limit:
+            link = link_el.get("href", url) if link_el else url
+            title = self._make_title(text)
+            out.append(self._signal(src, title, text, link))
+            if len(out) >= limit:
                 break
-        return result
+        return out
 
-    def _fallback(self) -> list[Signal]:
-        result = []
-        for item in self.fallback_signals:
-            result.append(Signal(
-                id=hash_text(item["source_key"] + item["title"]),
-                source_key=item["source_key"], source_name=item.get("source_name", item["source_key"]),
-                source_url=item.get("source_url", ""), title=item["title"], text=item["text"],
-                url=item.get("url", ""), raw=item
-            ))
-        return result
+    def _parse_site(self, src: dict, url: str, html: str, limit: int) -> list[Signal]:
+        soup = BeautifulSoup(html, "lxml")
+        out: list[Signal] = []
+        seen: set[str] = set()
+        for a in soup.find_all("a", href=True):
+            text = normalize_spaces(a.get_text(" ", strip=True))
+            if len(text) < 28 or len(text) > 180:
+                continue
+            href = urljoin(url, a.get("href", ""))
+            if href in seen or href.startswith("javascript:"):
+                continue
+            seen.add(href)
+            title = text
+            out.append(self._signal(src, title, text, href))
+            if len(out) >= limit:
+                break
+        if not out:
+            title = soup.title.get_text(" ", strip=True) if soup.title else src.get("name", "Travel source")
+            out.append(self._signal(src, title, title, url))
+        return out
+
+    def _signal(self, src: dict, title: str, text: str, url: str) -> Signal:
+        fp = semantic_fingerprint(src.get("key", ""), title, text)
+        genre = ""
+        genres = src.get("genres") or []
+        if genres:
+            genre = genres[0]
+        return Signal(
+            id=stable_hash(src.get("key", "") + url + title),
+            source_key=src.get("key", ""),
+            source_name=src.get("name", src.get("key", "")),
+            source_url=src.get("url", ""),
+            title=title,
+            text=text,
+            url=url,
+            published_at=now_iso(),
+            raw={"source_type": src.get("type"), "role": src.get("role"), "priority": src.get("priority")},
+            genre=genre,
+            semantic_hash=fp,
+        )
+
+    def _make_title(self, text: str) -> str:
+        text = re.sub(r"\s+", " ", text).strip()
+        first = re.split(r"[\n.!?]", text)[0].strip()
+        return first[:120] if first else text[:120]
+
+    def _round_robin(self, buckets: list[list[Signal]]) -> list[Signal]:
+        out: list[Signal] = []
+        max_len = max((len(b) for b in buckets), default=0)
+        for i in range(max_len):
+            for bucket in buckets:
+                if i < len(bucket):
+                    out.append(bucket[i])
+        return out

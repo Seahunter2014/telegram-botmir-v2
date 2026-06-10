@@ -1,38 +1,58 @@
-# Мир на ладони — AI Newsroom Bot v5.0
+# Мир на ладони — AI-редакция travel Telegram-канала
 
-Чистая финальная архитектура Telegram-бота AI-редактора по MASTER-ТЗ.
+Версия: `2026.06.10 FINAL AI NEWSROOM v6.2 TURNKEY EDITORIAL GROWTH CORE`.
+
+Бот работает как AI-редакция: ищет travel-сигналы, фильтрует мусор, выбирает тему, генерирует 3 варианта поста, проверяет качество, подбирает CTA/кнопки/медиа, публикует в канал и пишет диагностический отчёт.
 
 ## Запуск на Railway
 
-Start command:
+Start Command:
 
 ```bash
 python -m src.telegram_app
 ```
 
-## Ключевой принцип
+Обязательные переменные:
 
-Бот не копирует источники. Источник — только сырьё для редакционного повода. Итог — готовый Telegram-пост: заголовок, короткие абзацы, вовлечение, уместные ссылки, релевантное медиа.
+```env
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_ADMIN_ID=
+TELEGRAM_CHANNEL_ID=
+TEST_CHANNEL_ID=
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-4.1-mini
+OPENAI_TEMPERATURE=0.85
+SCHEDULE_TIMEZONE=Europe/Moscow
+ALLOW_FALLBACK_AUTOPUBLISH=true
+```
 
-## Главные команды
+Pexels/Unsplash/Pixabay необязательны: если фото не найдено, бот создаёт локальный travel-визуал.
 
-- `/menu` — главное меню
-- `/version` — версия
-- `/test` — следующий тестовый пост
-- `/test 1` или сообщение `тест 1` — тест темы под номером 1
-- `/test flight_deal` — тест жанра
-- `/run_once` — один автопостинг вручную
-- `/schedule` — расписание
-- `/schedule_set 09:00,14:00,19:00` — сменить расписание
-- `/channels` — список каналов
-- `/add_channel @channel` — добавить канал
-- `/remove_channel @channel` — удалить канал
-- `/set_channels @channel1,@channel2` — заменить список каналов
-- `/autopost_on` / `/autopost_off` — автопостинг
-- `/status` — статус
+## Команды
 
-## Проверка проекта
+- `/start`, `/menu`
+- `/version`
+- `/status`
+- `/test`, `/test 1`, `/test 2`, `/test 3`
+- `/run_once`
+- `/autopost_on`, `/autopost_off`
+- `/schedule`, `/schedule_set 09:00,14:00,19:00`
+- `/channels`, `/add_channel`, `/remove_channel`, `/set_channels`
+- `/sources`, `/services`, `/topics`
+- `/why_skipped`, `/last`
+
+## Локальная проверка
 
 ```bash
+python -m compileall -q src tests
 python tests/validate_project.py
+python tests/test_rotation.py
+python tests/test_cta_rules.py
+python tests/test_media_policy.py
+python tests/test_publish_split.py
+python tests/test_pipeline_dryrun.py
 ```
+
+## Важное
+
+Секреты не хранятся в коде. Все токены задаются только через переменные окружения Railway.

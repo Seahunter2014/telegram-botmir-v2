@@ -1,14 +1,14 @@
-import time
-from .state_store import StateStore
+from __future__ import annotations
+
+from .config_loader import DATA_DIR, load_json, save_json
+from .text_utils import now_iso
+
 
 class AnalyticsStore:
-    def __init__(self, state: StateStore):
-        self.state = state
+    def __init__(self):
+        self.path = DATA_DIR / "analytics.json"
 
-    def record_publication(self, payload: dict):
-        data = self.state.load()
-        arr = data.setdefault("analytics", [])
-        payload["ts"] = int(time.time())
-        arr.append(payload)
-        data["analytics"] = arr[-500:]
-        self.state.save(data)
+    def record(self, event: str, payload: dict | None = None) -> None:
+        data = load_json(self.path, default={"events": []})
+        data.setdefault("events", []).append({"time": now_iso(), "event": event, "payload": payload or {}})
+        save_json(self.path, data)

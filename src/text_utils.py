@@ -1,70 +1,62 @@
+from __future__ import annotations
+
 import hashlib
 import html
 import re
 from datetime import datetime
 
-MONTHS_RU = {
-    "января": "01", "февраля": "02", "марта": "03", "апреля": "04", "мая": "05", "июня": "06",
-    "июля": "07", "августа": "08", "сентября": "09", "октября": "10", "ноября": "11", "декабря": "12",
-}
+
+def normalize_spaces(text: str) -> str:
+    return re.sub(r"\s+", " ", (text or "")).strip()
 
 
 def clean_text(text: str) -> str:
     text = html.unescape(text or "")
-    text = re.sub(r"\s+", " ", text).strip()
-    return text
+    text = re.sub(r"https?://\S+", "", text)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
 
 
-def normalize_title(text: str) -> str:
-    text = clean_text(text).lower()
-    text = re.sub(r"[^а-яa-z0-9ё\s]+", " ", text)
-    return re.sub(r"\s+", " ", text).strip()
+def slug(text: str, limit: int = 80) -> str:
+    text = normalize_spaces(text).lower()
+    text = re.sub(r"[^a-zа-я0-9]+", "-", text, flags=re.I).strip("-")
+    return text[:limit] or "item"
 
 
-def hash_text(text: str) -> str:
-    return hashlib.sha256(normalize_title(text).encode("utf-8")).hexdigest()[:16]
+def stable_hash(text: str) -> str:
+    return hashlib.sha256(normalize_spaces(text).lower().encode("utf-8")).hexdigest()[:16]
+
+
+def semantic_fingerprint(*parts: str) -> str:
+    joined = " ".join(normalize_spaces(p).lower() for p in parts if p)
+    joined = re.sub(r"[^a-zа-я0-9 ]+", " ", joined, flags=re.I)
+    words = [w for w in joined.split() if len(w) > 3]
+    return stable_hash(" ".join(words[:80]))
+
+
+def now_iso() -> str:
+    return datetime.now().isoformat(timespec="seconds")
 
 
 def extract_price(text: str) -> str:
-    patterns = [
-        r"(?:от\s*)?(\d[\d\s]{2,})\s*(?:₽|руб|рублей|р\.)",
-        r"(?:за\s*)(\d[\d\s]{2,})\s*(?:₽|руб|рублей|р\.)",
-    ]
-    for pattern in patterns:
-        m = re.search(pattern, text, flags=re.IGNORECASE)
-        if m:
-            return m.group(1).replace(" ", "") + " ₽"
-    return ""
-
-
-def extract_date_text(text: str) -> str:
-    m = re.search(r"\b(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\b", text, re.I)
-    if m:
-        return f"{m.group(1)} {m.group(2).lower()}"
-    m = re.search(r"\b(\d{1,2})[./-](\d{1,2})(?:[./-](\d{2,4}))?\b", text)
-    if m:
-        return m.group(0)
-    return ""
-
-
-def date_to_ddmm(date_text: str) -> str:
-    if not date_text:
+    m = re.search(r"(?:от\s*)?([0-9][0-9\s]{2,})(?:\s*)(₽|руб|р\.|€|\$)", text or "", re.I)
+    if not m:
         return ""
-    m = re.search(r"(\d{1,2})\s+([а-яё]+)", date_text.lower())
-    if m and m.group(2) in MONTHS_RU:
-        return f"{int(m.group(1)):02d}{MONTHS_RU[m.group(2)]}"
-    m = re.search(r"(\d{1,2})[./-](\d{1,2})", date_text)
-    if m:
-        return f"{int(m.group(1)):02d}{int(m.group(2)):02d}"
-    return ""
+    return f"{m.group(1).strip()} {m.group(2)}".replace("  ", " ")
 
 
-def first_sentence(text: str, limit: int = 140) -> str:
-    text = clean_text(text)
-    parts = re.split(r"(?<=[.!?])\s+", text)
-    result = parts[0] if parts else text
-    return result[:limit]
+def extract_dates(text: str) -> str:
+    patterns = [r"\b\d{1,2}\s*(?:января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)\b", r"\b\d{1,2}[./-]\d{1,2}(?:[./-]\d{2,4})?\b", r"\b(?:летом|осенью|зимой|весной|на майские|на Новый год)\b"]
+    hits=[]
+    for p in patterns:
+        hits += re.findall(p, text or "", re.I)
+    return ", ".join(dict.fromkeys([str(x) for x in hits][:4]))
 
 
-def html_escape(text: str) -> str:
+def split_sentences(text: str) -> list[str]:
+    chunks = re.split(r"(?<=[.!?…])\s+", text.strip())
+    return [c.strip() for c in chunks if c.strip()]
+
+
+def safe_html(text: str) -> str:
     return html.escape(text or "", quote=False)

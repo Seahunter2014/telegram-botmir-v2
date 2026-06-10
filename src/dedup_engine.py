@@ -1,23 +1,32 @@
-from .state_store import StateStore
+from __future__ import annotations
+
 from .models import Signal
-from .text_utils import hash_text, normalize_title
+from .state_store import StateStore
+from .text_utils import semantic_fingerprint
+
 
 class DedupEngine:
-    def __init__(self, state: StateStore):
-        self.state = state
+    def __init__(self, state: StateStore | None = None):
+        self.state = state or StateStore()
 
-    def is_duplicate_signal(self, signal: Signal) -> tuple[bool, str]:
-        data = self.state.load()
-        if signal.url and signal.url in data.get("published_urls", []):
-            return True, "URL уже публиковался."
-        title_norm = normalize_title(signal.title)
-        for old in data.get("published_titles", [])[-80:]:
-            if title_norm and (title_norm in normalize_title(old) or normalize_title(old) in title_norm):
-                return True, "Похожий заголовок уже был."
+    def is_duplicate(self, signal: Signal) -> tuple[bool, str]:
+        pubs = self.state.publications()[-300:]
+        urls = {p.get("url") for p in pubs if p.get("url")}
+        hashes = {p.get("semantic_hash") for p in pubs if p.get("semantic_hash")}
+        titles = {str(p.get("title", "")).lower() for p in pubs}
+        fp = signal.semantic_hash or semantic_fingerprint(signal.title, signal.city, signal.country, signal.genre, signal.angle)
+        if signal.url and signal.url in urls:
+            return True, "URL уже публиковался"
+        if fp and fp in hashes:
+            return True, "смысловой hash уже был"
+        if signal.title.lower() in titles:
+            return True, "заголовок уже был"
         return False, ""
 
-    def is_duplicate_text(self, text: str) -> tuple[bool, str]:
-        h = hash_text(text)
-        if h in self.state.get("published_text_hashes", []):
-            return True, "Такой текст уже публиковался."
-        return False, ""
+    def filter(self, signals: list[Signal]) -> list[Signal]:
+        out = []
+        for s in signals:
+            dup, _ = self.is_duplicate(s)
+            if not dup:
+                out.append(s)
+        return out
