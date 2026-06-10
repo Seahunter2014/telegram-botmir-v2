@@ -5,8 +5,8 @@ from .models import Brief, PostVariant
 
 class EngagementEngine:
     def improve(self, variant: PostVariant, brief: Brief) -> PostVariant:
-        text = f"{variant.body}\n{variant.cta_text}".lower()
-        if any(x in text for x in ["сохран", "перешл", "комментар", "пишите", "проверь"]):
+        # Главный CTA пишет OpenAI по master prompt. Код добавляет финал только если OpenAI его не дал.
+        if variant.cta_text and variant.cta_text.strip():
             return variant
         topic_text = f"{brief.topic} {brief.editorial_angle} {brief.main_fact}".lower()
         price_theme = any(
@@ -14,16 +14,16 @@ class EngagementEngine:
             for x in ["цен", "сезон", "ранн", "брон", "тур", "билет", "отел", "скид", "дат"]
         )
         if brief.genre == "top_list":
-            variant.cta_text = "Сохраните пост, чтобы вернуться к этой подборке перед планированием поездки."
+            variant.cta_text = "Сохраните пост и вернитесь к нему, когда будете выбирать направление под свои даты."
         elif brief.genre == "route":
-            variant.cta_text = "Сохраните маршрут и проверьте даты заранее — так проще собрать поездку без лишней суеты."
+            variant.cta_text = "Сохраните маршрут и заранее проверьте сезон, переезды и даты — так проще понять реальный бюджет поездки."
         elif brief.genre in {"flight_deal", "tour_offer", "hotel_post"} or price_theme:
             variant.cta_text = (
                 "Перед бронированием сравните соседние даты и 2–3 сервиса: "
                 "иногда сдвиг поездки на несколько дней заметно снижает итоговую цену."
             )
         elif brief.genre == "practical_travel":
-            variant.cta_text = "Примените этот совет перед следующей поездкой и поделитесь в комментариях своим рабочим лайфхаком."
+            variant.cta_text = "Проверьте этот совет на своих датах и поделитесь в комментариях, какой приём реально сработал у вас."
         else:
-            variant.cta_text = "Отправьте пост тому, кому эта идея может пригодиться при планировании поездки."
+            variant.cta_text = "Отправьте пост тому, кому эта идея пригодится при планировании следующей поездки."
         return variant

@@ -27,11 +27,14 @@ docs/FINAL_TZ_Mir_na_Ladoni_AI_Editor_v6_2.md
 docs/PROJECT_MAP.md
 docs/QA_REPORT.md
 main.py
+media_cache/generated_morocco-travel.png
+media_cache/generated_как-путешествовать-д-шево-лайфхаки-о-кот.png
 prompts/anti_template_ru.md
 prompts/cta_rules_ru.md
 prompts/editorial_planner_ru.md
 prompts/engagement_ru.md
 prompts/fact_check_ru.md
+prompts/master_writer_ru.md
 prompts/quality_selector_ru.md
 prompts/system_editor_ru.md
 prompts/writer_3_variants_ru.md
@@ -75,7 +78,10 @@ src/topic_guard.py
 src/url_builder.py
 src/version.py
 tests/test_cta_rules.py
+tests/test_master_prompt_contract.py
 tests/test_media_policy.py
+tests/test_menu_contract.py
+tests/test_openai_required.py
 tests/test_pipeline_dryrun.py
 tests/test_publish_split.py
 tests/test_rotation.py

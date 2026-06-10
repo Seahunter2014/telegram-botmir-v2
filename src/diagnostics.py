@@ -41,13 +41,28 @@ class RunReport:
             "message": self.message,
         }
 
+    def _step_details(self, name: str) -> Any:
+        for s in reversed(self.steps):
+            if s.get("name") == name:
+                return s.get("details")
+        return None
+
     def admin_text(self) -> str:
         c = self.counters
+        context = self._step_details("generation.context") or {}
+        writer = self._step_details("ai_writer.generate") or {}
+        quality = self._step_details("quality.gate") or {}
+        media = self._step_details("media.find_or_generate") or {}
+        cta = self._step_details("cta.apply") or {}
+        publish = self._step_details("publisher.publish") or {}
+
+        openai_state = "OK" if c.get("openai_ok") else ("ERROR" if c.get("openai_error") else "не проверен")
         lines = [
             f"🧭 Отчёт запуска: {self.run_id}",
             f"Старт: {self.started_at}",
             f"Итог: {self.result}",
             "",
+            "🔎 Источники и выбор темы",
             f"Источников проверено: {c.get('sources_checked', 0)}",
             f"Работают: {c.get('sources_ok', 0)}",
             f"Ошибки источников: {c.get('source_errors', 0)}",
@@ -55,11 +70,58 @@ class RunReport:
             f"После travel-фильтра: {c.get('after_guard', 0)}",
             f"После дедупликации: {c.get('after_dedup', 0)}",
             f"Кандидатов для GPT: {c.get('candidates', 0)}",
-            f"OpenAI: {'OK' if c.get('openai_ok') else ('ERROR' if c.get('openai_error') else 'не проверен')}",
-            f"GPT: {c.get('gpt_variants', 0)} вариантов",
-            f"Медиа: {c.get('media', 0)}",
-            f"Публикация: {c.get('published', 0)}",
         ]
+
+        if isinstance(context, dict) and context:
+            lines += [
+                "",
+                "🧩 Brief",
+                f"Источник: {context.get('source_name') or '-'}",
+                f"Тема: {context.get('topic') or '-'}",
+                f"Жанр: {context.get('genre') or '-'} · слот: {context.get('slot') or '-'} · score: {context.get('signal_score') or 0}",
+                f"Угол: {context.get('editorial_angle') or '-'}",
+                f"Польза: {context.get('practical_value') or '-'}",
+            ]
+
+        lines += [
+            "",
+            "🤖 Генерация",
+            f"Генератор: {'OpenAI' if c.get('openai_ok') else ('OpenAI ERROR' if c.get('openai_error') else 'не проверен')}",
+            f"Модель: {writer.get('model') if isinstance(writer, dict) else '-'}",
+            f"Промт: {writer.get('prompt_file') if isinstance(writer, dict) else '-'}",
+            f"OpenAI: {openai_state}",
+            f"Постов от GPT: {c.get('gpt_variants', 0)}",
+        ]
+
+        if isinstance(quality, dict) and quality:
+            lines += [
+                "",
+                "✅ Quality Gate",
+                f"Качество: {quality.get('score', 0)}/100",
+                f"Решение: {quality.get('decision', '-')}",
+            ]
+            reasons = quality.get("reasons") or ""
+            if reasons:
+                lines.append(f"Причины оценки: {reasons}")
+            warnings = quality.get("warnings") or []
+            if warnings:
+                lines.append("Предупреждения: " + "; ".join(str(x) for x in warnings[:5]))
+
+        if isinstance(media, dict):
+            lines += ["", "🖼 Медиа", f"Статус: {'найдено/создано' if media else 'нет'}"]
+            if media.get("source"):
+                lines.append(f"Источник медиа: {media.get('source')}")
+            if media.get("query_used"):
+                lines.append(f"Запрос: {media.get('query_used')}")
+
+        if isinstance(cta, dict) and cta:
+            buttons = cta.get("buttons") or []
+            lines += ["", "🔘 Кнопки", "Кнопки: " + (", ".join(buttons) if buttons else "нет")]
+
+        lines += ["", "📣 Публикация", f"Публикация: {c.get('published', 0)}"]
+        if isinstance(publish, dict) and publish:
+            lines.append("Результат каналов: " + ", ".join(f"{k}: {'OK' if v.get('ok') else 'ERROR'}" for k, v in publish.items()))
+
         if self.message:
             lines += ["", self.message]
         if self.source_errors:

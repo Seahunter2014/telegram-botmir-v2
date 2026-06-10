@@ -21,6 +21,28 @@
           "@dry_run"
         ]
       }
+    },
+    {
+      "time": "2026-06-10T15:10:23",
+      "event": "published",
+      "payload": {
+        "title": "Тестовый пост OpenAI",
+        "genre": "practical_travel",
+        "channels": [
+          "@dry_run"
+        ]
+      }
+    },
+    {
+      "time": "2026-06-10T15:11:37",
+      "event": "published",
+      "payload": {
+        "title": "Тестовый пост OpenAI",
+        "genre": "practical_travel",
+        "channels": [
+          "@dry_run"
+        ]
+      }
     }
   ]
 }

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from .ai_writer import AIWriter
+from .ai_writer import AIWriter, MASTER_PROMPT_FILE
 from .analytics_store import AnalyticsStore
 from .config_loader import Settings, load_settings
 from .cta_engine import CTAEngine
@@ -14,7 +14,7 @@ from .fact_checker import FactChecker
 from .fallback_topic_engine import FallbackTopicEngine
 from .media_engine import MediaEngine
 from .media_sources import MediaSources
-from .models import Brief, PreparedPost, PostVariant, Signal
+from .models import PreparedPost, PostVariant, Signal
 from .openai_client import OpenAIClient
 from .publisher import Publisher
 from .quality_selector import QualitySelector
@@ -48,7 +48,7 @@ class EditorialPipeline:
         self.rotation = RotationEngine(self.state)
         self.brief_engine = EditorialBriefEngine()
         self.openai = OpenAIClient(self.settings)
-        self.writer = AIWriter(self.openai, local_fallback=self.settings.local_writer_fallback)
+        self.writer = AIWriter(self.openai, local_fallback=False)
         self.engagement = EngagementEngine()
         self.fact = FactChecker()
         self.quality = QualitySelector()
@@ -111,25 +111,49 @@ class EditorialPipeline:
 
         ranked = self.rotation.rank(unique, current_slot=current_slot, test_index=test_index)
         report.count("candidates", len(ranked))
-        report.step("rotation.rank", "ok", [s.title for s in ranked[:3]])
+        report.step("rotation.rank", "ok", [s.title for s in ranked[:5]])
         return ranked
 
-    async def prepare_post(self, test_index: int = 0) -> tuple[PreparedPost | None, RunReport]:
+    async def prepare_post(self, test_index: int = 0, remember_preview: bool = True) -> tuple[PreparedPost | None, RunReport]:
         report = RunReport()
         candidates = await self.collect_candidates(report, test_index=test_index)
         if not candidates:
             report.finish("error", "Нет кандидатов и fallback не сработал")
             return None, report
+
         signal = candidates[0]
         brief = self.brief_engine.build(signal)
+        report.step("generation.context", "ok", {
+            "source_name": signal.source_name,
+            "source_key": signal.source_key,
+            "source_url": signal.source_url,
+            "topic": brief.topic,
+            "genre": brief.genre,
+            "slot": brief.slot,
+            "signal_score": signal.score,
+            "editorial_angle": brief.editorial_angle,
+            "practical_value": brief.practical_value,
+            "main_fact": brief.main_fact,
+        })
+
         variants, best_id, writer_warnings = await self.writer.generate(brief)
         report.count("gpt_variants", len(variants))
         if writer_warnings:
             report.count("openai_error", 1)
-            report.step("ai_writer.generate", "error", writer_warnings)
+            report.step("ai_writer.generate", "error", {
+                "provider": "OpenAI",
+                "model": self.settings.openai_model,
+                "prompt_file": MASTER_PROMPT_FILE,
+                "warnings": writer_warnings,
+            })
         else:
             report.count("openai_ok", 1)
-            report.step("ai_writer.generate", "ok", {"provider": "OpenAI", "variants": len(variants)})
+            report.step("ai_writer.generate", "ok", {
+                "provider": "OpenAI",
+                "model": self.settings.openai_model,
+                "prompt_file": MASTER_PROMPT_FILE,
+                "variants": len(variants),
+            })
         if not variants:
             report.finish("error", "OpenAI не выдал валидный пост. Локальный генератор отключён, публикации не будет.")
             return None, report
@@ -140,21 +164,57 @@ class EditorialPipeline:
             v = self.fact.check(v, brief)
             v = self.cta.apply(v, brief)
             processed.append(v)
+        if processed:
+            report.step("cta.apply", "ok", {"buttons": [b.text for b in processed[0].buttons]})
+
         best, scored = self.quality.choose(processed, brief)
         if not best:
+            top = scored[0] if scored else None
+            report.step("quality.gate", "reject", {
+                "decision": "reject",
+                "score": top.score if top else 0,
+                "title": top.title if top else "",
+                "reasons": top.why_it_works if top else "",
+                "warnings": top.warnings if top else [],
+            })
             report.finish("error", "Quality gate отклонил пост ниже минимального качества")
             return None, report
+        report.step("quality.gate", "ok", {
+            "decision": "publishable",
+            "score": best.score,
+            "title": best.title,
+            "reasons": best.why_it_works,
+            "warnings": best.warnings,
+        })
+
         media = self.media.find_or_generate(brief, best)
         report.count("media", 1 if media and (media.path or media.url) else 0)
         report.step("media.find_or_generate", "ok", media.to_dict() if media else {})
+
         session_id = self.state.new_session_id()
-        prepared = PreparedPost(session_id=session_id, signal=signal, brief=brief, variants=scored, best_variant_id=best.variant_id, media=media, diagnostics=report.to_dict())
+        prepared = PreparedPost(
+            session_id=session_id,
+            signal=signal,
+            brief=brief,
+            variants=scored,
+            best_variant_id=best.variant_id,
+            media=media,
+            diagnostics=report.to_dict(),
+        )
         self.state.save_session(prepared.to_dict())
+        if remember_preview:
+            self.state.remember_preview(signal, best.title)
         report.finish("prepared", f"Подготовлено: {best.title}")
         return prepared, report
 
     async def publish_prepared(self, prepared: PreparedPost, variant_id: int | None = None, channels: list[str] | None = None, dry_run: bool = False) -> tuple[dict[str, Any], RunReport]:
         report = RunReport()
+        previous = prepared.diagnostics or {}
+        if isinstance(previous, dict):
+            report.steps.extend(previous.get("steps") or [])
+            report.counters.update(previous.get("counters") or {})
+            report.source_errors.update(previous.get("source_errors") or {})
+
         variant = prepared.best_variant()
         if variant_id is not None:
             for v in prepared.variants:
@@ -182,17 +242,13 @@ class EditorialPipeline:
         return result, report
 
     async def run_once(self, channels: list[str] | None = None, dry_run: bool = False) -> tuple[PreparedPost | None, dict[str, Any], RunReport]:
-        prepared, prep_report = await self.prepare_post()
+        prepared, prep_report = await self.prepare_post(remember_preview=True)
         if not prepared:
             state = self.state.load(); state["last_run"] = prep_report.to_dict(); state["last_result"] = prep_report.result; self.state.save(state)
             return None, {}, prep_report
         result, pub_report = await self.publish_prepared(prepared, channels=channels, dry_run=dry_run)
-        # объединяем краткие счётчики для отчёта админу
-        prep_report.counters.update(pub_report.counters)
-        prep_report.steps.extend(pub_report.steps)
-        prep_report.finish(pub_report.result, pub_report.message)
-        state = self.state.load(); state["last_run"] = prep_report.to_dict(); state["last_result"] = prep_report.result; self.state.save(state)
-        return prepared, result, prep_report
+        state = self.state.load(); state["last_run"] = pub_report.to_dict(); state["last_result"] = pub_report.result; self.state.save(state)
+        return prepared, result, pub_report
 
     def _remember_publication(self, signal: Signal, variant: PostVariant, result: dict[str, Any]) -> None:
         self.state.append_publication({

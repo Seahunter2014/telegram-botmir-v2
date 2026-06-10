@@ -11,9 +11,11 @@ class DedupEngine:
 
     def is_duplicate(self, signal: Signal) -> tuple[bool, str]:
         pubs = self.state.publications()[-300:]
-        urls = {p.get("url") for p in pubs if p.get("url")}
-        hashes = {p.get("semantic_hash") for p in pubs if p.get("semantic_hash")}
-        titles = {str(p.get("title", "")).lower() for p in pubs}
+        previews = self.state.preview_history()[-300:]
+        checked = pubs + previews
+        urls = {p.get("url") for p in checked if p.get("url")}
+        hashes = {p.get("semantic_hash") for p in checked if p.get("semantic_hash")}
+        titles = {str(p.get("title", "")).lower() for p in checked}
         fp = signal.semantic_hash or semantic_fingerprint(signal.title, signal.city, signal.country, signal.genre, signal.angle)
         if signal.url and signal.url in urls:
             return True, "URL уже публиковался"

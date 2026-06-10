@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from .config_loader import DATA_DIR, load_json, save_json
+from .models import Signal
 
 
 class StateStore:
@@ -53,3 +54,29 @@ class StateStore:
         if not channels and fallback:
             channels = [fallback]
         return [c for c in channels if c]
+
+    def next_test_index(self) -> int:
+        data = self.load()
+        idx = int(data.get("next_test_index", 0) or 0) + 1
+        data["next_test_index"] = idx
+        self.save(data)
+        return idx
+
+    def remember_preview(self, signal: Signal, title: str = "") -> None:
+        data = self.load()
+        history = data.setdefault("preview_history", [])
+        history.append({
+            "time": int(time.time()),
+            "title": title or signal.title,
+            "url": signal.url,
+            "source_key": signal.source_key,
+            "genre": signal.genre,
+            "city": signal.city,
+            "country": signal.country,
+            "semantic_hash": signal.semantic_hash,
+        })
+        data["preview_history"] = history[-300:]
+        self.save(data)
+
+    def preview_history(self) -> list[dict[str, Any]]:
+        return self.load().get("preview_history", []) or []

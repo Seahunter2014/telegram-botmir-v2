@@ -38,5 +38,45 @@
         "parts": 1
       }
     }
+  },
+  {
+    "published_at": "2026-06-10T15:10:23",
+    "title": "Тестовый пост OpenAI",
+    "url": "",
+    "source_key": "fallback_topics",
+    "source_name": "Evergreen fallback",
+    "genre": "practical_travel",
+    "slot": "evening",
+    "city": "",
+    "country": "",
+    "semantic_hash": "bc8f19d5c1f3da78",
+    "channels_result": {
+      "@dry_run": {
+        "ok": true,
+        "dry_run": true,
+        "channel": "@dry_run",
+        "parts": 2
+      }
+    }
+  },
+  {
+    "published_at": "2026-06-10T15:11:37",
+    "title": "Тестовый пост OpenAI",
+    "url": "",
+    "source_key": "fallback_topics",
+    "source_name": "Evergreen fallback",
+    "genre": "practical_travel",
+    "slot": "evening",
+    "city": "",
+    "country": "",
+    "semantic_hash": "cc8c9b66c9da85f5",
+    "channels_result": {
+      "@dry_run": {
+        "ok": true,
+        "dry_run": true,
+        "channel": "@dry_run",
+        "parts": 2
+      }
+    }
   }
 ]
