@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable, Awaitable
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -11,7 +10,7 @@ class BotScheduler:
     def __init__(self, timezone: str = "Europe/Moscow"):
         self.timezone = timezone
         self.scheduler = AsyncIOScheduler(timezone=timezone)
-        self._lock = asyncio.Lock()
+        self._running = False
 
     def start(self) -> None:
         if not self.scheduler.running:
@@ -28,13 +27,20 @@ class BotScheduler:
                 continue
             hour, minute = item.split(":", 1)
             trigger = CronTrigger(hour=int(hour), minute=int(minute), timezone=self.timezone)
-            self.scheduler.add_job(lambda jf=job_func: asyncio.create_task(self._run_locked(jf)), trigger=trigger, id=f"autopost_{hour}_{minute}", replace_existing=True, misfire_grace_time=180)
+
+            async def runner(jf=job_func):
+                await self._run_locked(jf)
+
+            self.scheduler.add_job(runner, trigger=trigger, id=f"autopost_{hour}_{minute}", replace_existing=True, misfire_grace_time=180)
 
     async def _run_locked(self, job_func: Callable[[], Awaitable[None]]) -> None:
-        if self._lock.locked():
+        if self._running:
             return
-        async with self._lock:
+        self._running = True
+        try:
             await job_func()
+        finally:
+            self._running = False
 
     def next_runs(self) -> list[str]:
         out=[]

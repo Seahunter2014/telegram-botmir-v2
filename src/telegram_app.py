@@ -7,6 +7,7 @@ from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler, ContextTypes, MessageHandler, filters
 
 from .config_loader import load_settings, required_env_missing
+from .diagnostics import RunReport
 from .menu import (
     BTN_ADD_CHANNEL,
     BTN_AUTOP_OFF,
@@ -414,8 +415,24 @@ async def scheduled_autopost(app: Application) -> None:
     data = state.load()
     if not data.get("autopost_enabled"):
         return
-    pipeline = EditorialPipeline(settings, bot=app.bot)
-    prepared, result, report = await pipeline.run_once()
+    try:
+        pipeline = EditorialPipeline(settings, bot=app.bot)
+        prepared, result, report = await pipeline.run_once()
+    except Exception as exc:
+        log.exception("Autopost failed")
+        report = RunReport()
+        report.step("autopost.run", "error", f"{type(exc).__name__}: {exc}")
+        report.finish("error", f"Autopost failed: {type(exc).__name__}: {exc}")
+        data = state.load()
+        data["last_run"] = report.to_dict()
+        data["last_result"] = report.result
+        state.save(data)
+        if settings.telegram_admin_id:
+            try:
+                await app.bot.send_message(chat_id=int(settings.telegram_admin_id), text=report.admin_text()[:3900])
+            except Exception:
+                log.exception("РќРµ СѓРґР°Р»РѕСЃСЊ РѕС‚РїСЂР°РІРёС‚СЊ РѕС‚С‡С‘С‚ Р°РґРјРёРЅСѓ")
+        return
     if settings.telegram_admin_id:
         try:
             await app.bot.send_message(chat_id=int(settings.telegram_admin_id), text=report.admin_text()[:3900])
