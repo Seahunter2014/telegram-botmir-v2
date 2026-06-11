@@ -1,0 +1,27 @@
+{
+  "sources": [
+    {
+      "key": "pexels",
+      "type": "photo_video",
+      "env_key": "PEXELS_API_KEY",
+      "base_url": "https://api.pexels.com/v1/search",
+      "license": "Pexels License: free use, attribution not required but appreciated"
+    },
+    {
+      "key": "unsplash",
+      "type": "photo",
+      "env_key": "UNSPLASH_ACCESS_KEY",
+      "base_url": "https://api.unsplash.com/search/photos",
+      "license": "Unsplash License: free use, attribution appreciated"
+    },
+    {
+      "key": "pixabay",
+      "type": "photo_video",
+      "env_key": "PIXABAY_API_KEY",
+      "base_url": "https://pixabay.com/api/",
+      "license": "Pixabay Content License with restrictions"
+    }
+  ],
+  "telegram_images_allowed": false,
+  "fallback_generation": true
+}

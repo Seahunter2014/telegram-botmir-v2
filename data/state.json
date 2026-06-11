@@ -1,0 +1,1081 @@
+{
+  "autopost_enabled": false,
+  "schedule_times": [
+    "09:00",
+    "14:00",
+    "19:00"
+  ],
+  "channels": [],
+  "sessions": {
+    "s1781093229938": {
+      "session_id": "s1781093229938",
+      "signal": {
+        "id": "9e54341144afe8e5",
+        "source_key": "fallback_topics",
+        "source_name": "Evergreen fallback",
+        "source_url": "configs/fallback_topics.json",
+        "title": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий топ",
+        "text": "Fallback-тема для travel-канала: Как путешествовать дёшево: лайфхаки, о которых мало кто знает. Угол раскрытия: общий топ.",
+        "url": "",
+        "published_at": "2026-06-10T12:07:09",
+        "raw": {
+          "category": "budget",
+          "possible_angles": [
+            "общий топ",
+            "отдельная страна",
+            "конкретный город",
+            "конкретный курорт",
+            "зимний сезон",
+            "летний сезон",
+            "семейный формат",
+            "бюджетный вариант",
+            "романтический формат",
+            "маршрут на 3 дня",
+            "маршрут на неделю",
+            "без машины",
+            "для первого раза",
+            "для тех, кто уже был",
+            "из Москвы",
+            "из Санкт-Петербурга",
+            "из Сочи",
+            "из Краснодара"
+          ]
+        },
+        "city": "",
+        "country": "",
+        "price": "",
+        "dates": "",
+        "genre": "practical_travel",
+        "slot": "evening",
+        "score": 58,
+        "is_fallback": true,
+        "base_topic": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает",
+        "angle": "общий топ",
+        "semantic_hash": "d40d28432156e04d"
+      },
+      "brief": {
+        "source_key": "fallback_topics",
+        "source_name": "Evergreen fallback",
+        "source_url": "configs/fallback_topics.json",
+        "topic": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий топ",
+        "genre": "practical_travel",
+        "slot": "evening",
+        "city": "",
+        "country": "",
+        "price": "",
+        "dates": "",
+        "editorial_angle": "общий топ",
+        "target_emotion": "польза и уверенность",
+        "main_fact": "Fallback-тема для travel-канала: Как путешествовать дёшево: лайфхаки, о которых мало кто знает. Угол раскрытия: общий топ.",
+        "practical_value": "готовая инструкция",
+        "cta_level": "soft",
+        "allowed_services": [
+          "insurance",
+          "foreign_cards",
+          "general_bot"
+        ],
+        "forbidden_claims": [
+          "не утверждать непроверенные цены",
+          "не выдумывать визовые правила"
+        ],
+        "media_query_ru": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий топ",
+        "media_query_en": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий топ travel"
+      },
+      "variants": [
+        {
+          "variant_id": 1,
+          "style": "вдохновляющий",
+          "score": 100,
+          "title": "🧳 Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий ",
+          "body": "Это направление может стать не просто точкой на карте, а готовой идеей для следующей поездки. Главное — понять, зачем ехать, когда удобнее и что проверить заранее.\n\n──────✦──────\n\n📌 **Почему это цепляет**\nобщий топ. Здесь важны не громкие обещания, а понятная travel-ценность: красивый , маршрутная идея и повод сохранить пост.\n\n💡 **Что проверить**\n✅ сезон и погоду;\n✅ удобные рейсы или стыковки;\n✅ район проживания;\n✅ правила въезда и оплату на месте.",
+          "cta_text": "Отправьте тому, с кем давно обсуждаете новую поездку.",
+          "buttons": [
+            {
+              "text": "🛡 Проверить страховку",
+              "url": "https://cherehapa.tp.st/RIsddc4I?utm_source=mir_na_ladoni_bot&utm_content=practical_travel",
+              "service_key": "cherehapa",
+              "callback_data": ""
+            }
+          ],
+          "hashtags": [
+            "#мирналадони",
+            "#турджин",
+            "#Туры",
+            "#путешествиязаграницу",
+            "#travel"
+          ],
+          "why_it_works": "эмоция + конкретика + сохранение",
+          "warnings": []
+        },
+        {
+          "variant_id": 2,
+          "style": "практичный",
+          "score": 100,
+          "title": "🧳 Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий ",
+          "body": "Это направление может стать не просто точкой на карте, а готовой идеей для следующей поездки. Главное — понять, зачем ехать, когда удобнее и что проверить заранее.\n\n──────✦──────\n\n💡 **Короткий план**\n1. Сначала проверьте даты и сезон.\n2. Затем сравните перелёт, проживание и транспорт.\n3. После этого смотрите экскурсии, страховку и запас по бюджету.\n\n⚠️ **Важно**\nЦены, правила въезда и условия тарифов лучше перепроверять перед покупкой: в travel всё меняется быстрее, чем кажется.",
+          "cta_text": "Сохраните пост — пригодится, когда будете собирать следующую поездку.",
+          "buttons": [
+            {
+              "text": "🛡 Проверить страховку",
+              "url": "https://cherehapa.tp.st/RIsddc4I?utm_source=mir_na_ladoni_bot&utm_content=practical_travel",
+              "service_key": "cherehapa",
+              "callback_data": ""
+            }
+          ],
+          "hashtags": [
+            "#мирналадони",
+            "#турджин",
+            "#Туры",
+            "#путешествиязаграницу",
+            "#travel"
+          ],
+          "why_it_works": "структура + польза + понятный следующий шаг",
+          "warnings": []
+        },
+        {
+          "variant_id": 3,
+          "style": "вовлекающий",
+          "score": 100,
+          "title": "🧳 Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий ",
+          "body": "Это направление может стать не просто точкой на карте, а готовой идеей для следующей поездки. Главное — понять, зачем ехать, когда удобнее и что проверить заранее.\n\n──────✦──────\n\n📌 **Кому подойдёт**\n— тем, кто любит готовые идеи без долгого поиска;\n— тем, кто собирает маршруты в закладки;\n— тем, кто выбирает поездку по настроению, сезону и бюджету.\n\n💬 А вы бы выбрали такой формат поездки или поискали что-то спокойнее?",
+          "cta_text": "Примените этот совет перед следующей поездкой и поделитесь в комментариях своим рабочим лайфхаком.",
+          "buttons": [
+            {
+              "text": "🛡 Проверить страховку",
+              "url": "https://cherehapa.tp.st/RIsddc4I?utm_source=mir_na_ladoni_bot&utm_content=practical_travel",
+              "service_key": "cherehapa",
+              "callback_data": ""
+            }
+          ],
+          "hashtags": [
+            "#мирналадони",
+            "#турджин",
+            "#Туры",
+            "#путешествиязаграницу",
+            "#travel"
+          ],
+          "why_it_works": "вопрос + повод переслать",
+          "warnings": []
+        }
+      ],
+      "best_variant_id": 1,
+      "media": {
+        "path": "/mnt/data/patch_v62/mirnala_bot_v6_2_FINAL_TURNKEY/media_cache/generated_как-путешествовать-д-шево-лайфхаки-о-кот.png",
+        "url": "",
+        "kind": "photo",
+        "source": "Generated fallback",
+        "author": "",
+        "license_url": "local_generated",
+        "generated": true,
+        "query_used": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий топ travel"
+      },
+      "diagnostics": {
+        "run_id": "cc0d226956",
+        "started_at": "2026-06-10T12:07:09",
+        "finished_at": "",
+        "steps": [
+          {
+            "time": "2026-06-10T12:07:09",
+            "name": "sources.collect",
+            "status": "ok",
+            "details": {
+              "signals": 0,
+              "errors": 1
+            }
+          },
+          {
+            "time": "2026-06-10T12:07:09",
+            "name": "fallback.generate",
+            "status": "ok",
+            "details": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий топ"
+          },
+          {
+            "time": "2026-06-10T12:07:09",
+            "name": "topic_guard.filter",
+            "status": "ok",
+            "details": 1
+          },
+          {
+            "time": "2026-06-10T12:07:09",
+            "name": "extract_classify_score",
+            "status": "ok",
+            "details": 1
+          },
+          {
+            "time": "2026-06-10T12:07:09",
+            "name": "rotation.rank",
+            "status": "ok",
+            "details": [
+              "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий топ"
+            ]
+          },
+          {
+            "time": "2026-06-10T12:07:09",
+            "name": "ai_writer.generate",
+            "status": "warning",
+            "details": [
+              "OpenAI не вернул валидные варианты, использован локальный генератор"
+            ]
+          },
+          {
+            "time": "2026-06-10T12:07:09",
+            "name": "media.find_or_generate",
+            "status": "ok",
+            "details": {
+              "path": "/mnt/data/patch_v62/mirnala_bot_v6_2_FINAL_TURNKEY/media_cache/generated_как-путешествовать-д-шево-лайфхаки-о-кот.png",
+              "url": "",
+              "kind": "photo",
+              "source": "Generated fallback",
+              "author": "",
+              "license_url": "local_generated",
+              "generated": true,
+              "query_used": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — общий топ travel"
+            }
+          }
+        ],
+        "counters": {
+          "sources_checked": 20,
+          "sources_ok": 0,
+          "source_errors": 1,
+          "signals_found": 0,
+          "after_guard": 1,
+          "after_dedup": 1,
+          "candidates": 1,
+          "gpt_variants": 3,
+          "media": 1
+        },
+        "source_errors": {
+          "sources": "source fetch skipped by MIRNALA_SKIP_SOURCE_FETCH"
+        },
+        "result": "started",
+        "message": ""
+      }
+    },
+    "s1781099250179": {
+      "session_id": "s1781099250179",
+      "signal": {
+        "id": "b47d157d89204a0f",
+        "source_key": "fallback_topics",
+        "source_name": "Evergreen fallback",
+        "source_url": "configs/fallback_topics.json",
+        "title": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — отдельная страна",
+        "text": "Fallback-тема для travel-канала: Как путешествовать дёшево: лайфхаки, о которых мало кто знает. Угол раскрытия: отдельная страна.",
+        "url": "",
+        "published_at": "2026-06-10T13:47:30",
+        "raw": {
+          "category": "budget",
+          "possible_angles": [
+            "общий топ",
+            "отдельная страна",
+            "конкретный город",
+            "конкретный курорт",
+            "зимний сезон",
+            "летний сезон",
+            "семейный формат",
+            "бюджетный вариант",
+            "романтический формат",
+            "маршрут на 3 дня",
+            "маршрут на неделю",
+            "без машины",
+            "для первого раза",
+            "для тех, кто уже был",
+            "из Москвы",
+            "из Санкт-Петербурга",
+            "из Сочи",
+            "из Краснодара"
+          ]
+        },
+        "city": "",
+        "country": "",
+        "price": "",
+        "dates": "",
+        "genre": "practical_travel",
+        "slot": "evening",
+        "score": 58,
+        "is_fallback": true,
+        "base_topic": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает",
+        "angle": "отдельная страна",
+        "semantic_hash": "caf45e8d6728dffb"
+      },
+      "brief": {
+        "source_key": "fallback_topics",
+        "source_name": "Evergreen fallback",
+        "source_url": "configs/fallback_topics.json",
+        "topic": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — отдельная страна",
+        "genre": "practical_travel",
+        "slot": "evening",
+        "city": "",
+        "country": "",
+        "price": "",
+        "dates": "",
+        "editorial_angle": "отдельная страна",
+        "target_emotion": "польза и уверенность",
+        "main_fact": "Fallback-тема для travel-канала: Как путешествовать дёшево: лайфхаки, о которых мало кто знает. Угол раскрытия: отдельная страна.",
+        "practical_value": "готовая инструкция",
+        "cta_level": "soft",
+        "allowed_services": [
+          "insurance",
+          "foreign_cards",
+          "general_bot"
+        ],
+        "forbidden_claims": [
+          "не утверждать непроверенные цены",
+          "не выдумывать визовые правила"
+        ],
+        "media_query_ru": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — отдельная страна",
+        "media_query_en": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — отдельная страна travel"
+      },
+      "variants": [
+        {
+          "variant_id": 1,
+          "style": "тест OpenAI",
+          "score": 100,
+          "title": "Тестовый пост OpenAI",
+          "body": "Это тестовый редакционный пост, который имитирует успешный ответ OpenAI.\n\n──────✦──────\n\n📌 Конкретика: тема раскрыта без локального fallback-генератора.\n\n💡 Польза: читатель получает понятный следующий шаг и проверяет детали перед поездкой.",
+          "cta_text": "Проверьте детали перед бронированием.",
+          "buttons": [
+            {
+              "text": "🛡 Проверить страховку",
+              "url": "https://cherehapa.tp.st/RIsddc4I?utm_source=mir_na_ladoni_bot&utm_content=practical_travel",
+              "service_key": "cherehapa",
+              "callback_data": ""
+            }
+          ],
+          "hashtags": [
+            "#мирналадони",
+            "#travel"
+          ],
+          "why_it_works": "",
+          "warnings": [
+            "текст слишком короткий"
+          ]
+        }
+      ],
+      "best_variant_id": 1,
+      "media": {
+        "path": "/mnt/data/work_v62_fix/mirnala_bot_v6_2_FINAL_TURNKEY/media_cache/generated_как-путешествовать-д-шево-лайфхаки-о-кот.png",
+        "url": "",
+        "kind": "photo",
+        "source": "Generated fallback",
+        "author": "",
+        "license_url": "local_generated",
+        "generated": true,
+        "query_used": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — отдельная страна travel"
+      },
+      "diagnostics": {
+        "run_id": "e1ca83b5be",
+        "started_at": "2026-06-10T13:47:30",
+        "finished_at": "",
+        "steps": [
+          {
+            "time": "2026-06-10T13:47:30",
+            "name": "sources.collect",
+            "status": "ok",
+            "details": {
+              "signals": 0,
+              "errors": 1
+            }
+          },
+          {
+            "time": "2026-06-10T13:47:30",
+            "name": "fallback.generate",
+            "status": "ok",
+            "details": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — отдельная страна"
+          },
+          {
+            "time": "2026-06-10T13:47:30",
+            "name": "topic_guard.filter",
+            "status": "ok",
+            "details": 1
+          },
+          {
+            "time": "2026-06-10T13:47:30",
+            "name": "extract_classify_score",
+            "status": "ok",
+            "details": 1
+          },
+          {
+            "time": "2026-06-10T13:47:30",
+            "name": "rotation.rank",
+            "status": "ok",
+            "details": [
+              "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — отдельная страна"
+            ]
+          },
+          {
+            "time": "2026-06-10T13:47:30",
+            "name": "ai_writer.generate",
+            "status": "ok",
+            "details": {
+              "provider": "OpenAI",
+              "variants": 1
+            }
+          },
+          {
+            "time": "2026-06-10T13:47:30",
+            "name": "media.find_or_generate",
+            "status": "ok",
+            "details": {
+              "path": "/mnt/data/work_v62_fix/mirnala_bot_v6_2_FINAL_TURNKEY/media_cache/generated_как-путешествовать-д-шево-лайфхаки-о-кот.png",
+              "url": "",
+              "kind": "photo",
+              "source": "Generated fallback",
+              "author": "",
+              "license_url": "local_generated",
+              "generated": true,
+              "query_used": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — отдельная страна travel"
+            }
+          }
+        ],
+        "counters": {
+          "sources_checked": 20,
+          "sources_ok": 0,
+          "source_errors": 1,
+          "signals_found": 0,
+          "after_guard": 1,
+          "after_dedup": 1,
+          "candidates": 1,
+          "gpt_variants": 1,
+          "openai_ok": 1,
+          "media": 1
+        },
+        "source_errors": {
+          "sources": "source fetch skipped by MIRNALA_SKIP_SOURCE_FETCH"
+        },
+        "result": "started",
+        "message": ""
+      }
+    },
+    "s1781104223885": {
+      "session_id": "s1781104223885",
+      "signal": {
+        "id": "1dbb0bc73f66253d",
+        "source_key": "fallback_topics",
+        "source_name": "Evergreen fallback",
+        "source_url": "configs/fallback_topics.json",
+        "title": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный город",
+        "text": "Fallback-тема для travel-канала: Как путешествовать дёшево: лайфхаки, о которых мало кто знает. Угол раскрытия: конкретный город.",
+        "url": "",
+        "published_at": "2026-06-10T15:10:23",
+        "raw": {
+          "category": "budget",
+          "possible_angles": [
+            "общий топ",
+            "отдельная страна",
+            "конкретный город",
+            "конкретный курорт",
+            "зимний сезон",
+            "летний сезон",
+            "семейный формат",
+            "бюджетный вариант",
+            "романтический формат",
+            "маршрут на 3 дня",
+            "маршрут на неделю",
+            "без машины",
+            "для первого раза",
+            "для тех, кто уже был",
+            "из Москвы",
+            "из Санкт-Петербурга",
+            "из Сочи",
+            "из Краснодара"
+          ]
+        },
+        "city": "",
+        "country": "",
+        "price": "",
+        "dates": "",
+        "genre": "practical_travel",
+        "slot": "evening",
+        "score": 63,
+        "is_fallback": true,
+        "base_topic": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает",
+        "angle": "конкретный город",
+        "semantic_hash": "bc8f19d5c1f3da78"
+      },
+      "brief": {
+        "source_key": "fallback_topics",
+        "source_name": "Evergreen fallback",
+        "source_url": "configs/fallback_topics.json",
+        "topic": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный город",
+        "genre": "practical_travel",
+        "slot": "evening",
+        "city": "",
+        "country": "",
+        "price": "",
+        "dates": "",
+        "editorial_angle": "конкретный город",
+        "target_emotion": "польза и уверенность",
+        "main_fact": "Fallback-тема для travel-канала: Как путешествовать дёшево: лайфхаки, о которых мало кто знает. Угол раскрытия: конкретный город.",
+        "practical_value": "готовая инструкция",
+        "cta_level": "soft",
+        "allowed_services": [
+          "insurance",
+          "foreign_cards",
+          "general_bot"
+        ],
+        "forbidden_claims": [
+          "не утверждать непроверенные цены",
+          "не выдумывать визовые правила"
+        ],
+        "media_query_ru": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный город",
+        "media_query_en": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный город travel"
+      },
+      "variants": [
+        {
+          "variant_id": 1,
+          "style": "тест OpenAI",
+          "score": 85,
+          "title": "Тестовый пост OpenAI",
+          "body": "Это тестовый редакционный пост, который имитирует успешный ответ OpenAI и проверяет полный pipeline без локального fallback-генератора.\n\n──────✦──────\n\n📌 Конкретика: в тексте есть маршрутная логика, сезон, даты, отель, рейс, багаж и практическая проверка перед бронированием. Такой пост не должен проходить как шаблон, он должен иметь понятную пользу для читателя.\n\n💡 Что проверить: сравните соседние даты, условия багажа, аэропорт вылета, район отеля и правила возврата. Если сдвинуть поездку на несколько дней, итоговая цена иногда заметно меняется.\n\n🧭 Практическая польза: читатель понимает, что нельзя покупать первый попавшийся вариант. Нужно проверить 2–3 сервиса, включить уведомления о скидках и заранее оценить дополнительные расходы.\n\n⚠️ Важно: цена и наличие мест могут быстро измениться, поэтому перед оплатой лучше открыть условия тарифа и проверить даты ещё раз.",
+          "cta_text": "Проверьте детали перед бронированием.",
+          "buttons": [
+            {
+              "text": "🛡 Проверить страховку",
+              "url": "https://cherehapa.tp.st/RIsddc4I?utm_source=mir_na_ladoni_bot&utm_content=practical_travel",
+              "service_key": "cherehapa",
+              "callback_data": ""
+            }
+          ],
+          "hashtags": [
+            "#мирналадони",
+            "#travel",
+            "#путешествия"
+          ],
+          "why_it_works": "заголовок конкретный; объём поста подходит Telegram; есть структура и короткие блоки; достаточно практической конкретики; есть практический следующий шаг; финал есть; финал связан с действием читателя; хештеги в норме",
+          "warnings": []
+        }
+      ],
+      "best_variant_id": 1,
+      "media": {
+        "path": "/mnt/data/final_work/mirnala_bot_v6_3_OPENAI_MASTER_PROMPT_NO_LOCAL_FALLBACK/media_cache/generated_как-путешествовать-д-шево-лайфхаки-о-кот.png",
+        "url": "",
+        "kind": "photo",
+        "source": "Generated fallback",
+        "author": "",
+        "license_url": "local_generated",
+        "generated": true,
+        "query_used": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный город travel"
+      },
+      "diagnostics": {
+        "run_id": "b25b2f8550",
+        "started_at": "2026-06-10T15:10:23",
+        "finished_at": "",
+        "steps": [
+          {
+            "time": "2026-06-10T15:10:23",
+            "name": "sources.collect",
+            "status": "ok",
+            "details": {
+              "signals": 0,
+              "errors": 1
+            }
+          },
+          {
+            "time": "2026-06-10T15:10:23",
+            "name": "fallback.generate",
+            "status": "ok",
+            "details": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный город"
+          },
+          {
+            "time": "2026-06-10T15:10:23",
+            "name": "topic_guard.filter",
+            "status": "ok",
+            "details": 1
+          },
+          {
+            "time": "2026-06-10T15:10:23",
+            "name": "extract_classify_score",
+            "status": "ok",
+            "details": 1
+          },
+          {
+            "time": "2026-06-10T15:10:23",
+            "name": "rotation.rank",
+            "status": "ok",
+            "details": [
+              "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный город"
+            ]
+          },
+          {
+            "time": "2026-06-10T15:10:23",
+            "name": "generation.context",
+            "status": "ok",
+            "details": {
+              "source_name": "Evergreen fallback",
+              "source_key": "fallback_topics",
+              "source_url": "configs/fallback_topics.json",
+              "topic": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный город",
+              "genre": "practical_travel",
+              "slot": "evening",
+              "signal_score": 63,
+              "editorial_angle": "конкретный город",
+              "practical_value": "готовая инструкция",
+              "main_fact": "Fallback-тема для travel-канала: Как путешествовать дёшево: лайфхаки, о которых мало кто знает. Угол раскрытия: конкретный город."
+            }
+          },
+          {
+            "time": "2026-06-10T15:10:23",
+            "name": "ai_writer.generate",
+            "status": "ok",
+            "details": {
+              "provider": "OpenAI",
+              "model": "gpt-4.1-mini",
+              "prompt_file": "prompts/master_writer_ru.md",
+              "variants": 1
+            }
+          },
+          {
+            "time": "2026-06-10T15:10:23",
+            "name": "cta.apply",
+            "status": "ok",
+            "details": {
+              "buttons": [
+                "🛡 Проверить страховку"
+              ]
+            }
+          },
+          {
+            "time": "2026-06-10T15:10:23",
+            "name": "quality.gate",
+            "status": "ok",
+            "details": {
+              "decision": "publishable",
+              "score": 85,
+              "title": "Тестовый пост OpenAI",
+              "reasons": "заголовок конкретный; объём поста подходит Telegram; есть структура и короткие блоки; достаточно практической конкретики; есть практический следующий шаг; финал есть; финал связан с действием читателя; хештеги в норме",
+              "warnings": []
+            }
+          },
+          {
+            "time": "2026-06-10T15:10:23",
+            "name": "media.find_or_generate",
+            "status": "ok",
+            "details": {
+              "path": "/mnt/data/final_work/mirnala_bot_v6_3_OPENAI_MASTER_PROMPT_NO_LOCAL_FALLBACK/media_cache/generated_как-путешествовать-д-шево-лайфхаки-о-кот.png",
+              "url": "",
+              "kind": "photo",
+              "source": "Generated fallback",
+              "author": "",
+              "license_url": "local_generated",
+              "generated": true,
+              "query_used": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный город travel"
+            }
+          }
+        ],
+        "counters": {
+          "sources_checked": 20,
+          "sources_ok": 0,
+          "source_errors": 1,
+          "signals_found": 0,
+          "after_guard": 1,
+          "after_dedup": 1,
+          "candidates": 1,
+          "gpt_variants": 1,
+          "openai_ok": 1,
+          "media": 1
+        },
+        "source_errors": {
+          "sources": "source fetch skipped by MIRNALA_SKIP_SOURCE_FETCH"
+        },
+        "result": "started",
+        "message": ""
+      }
+    },
+    "s1781104297855": {
+      "session_id": "s1781104297855",
+      "signal": {
+        "id": "9704b9356313ee1a",
+        "source_key": "fallback_topics",
+        "source_name": "Evergreen fallback",
+        "source_url": "configs/fallback_topics.json",
+        "title": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт",
+        "text": "Fallback-тема для travel-канала: Как путешествовать дёшево: лайфхаки, о которых мало кто знает. Угол раскрытия: конкретный курорт.",
+        "url": "",
+        "published_at": "2026-06-10T15:11:37",
+        "raw": {
+          "category": "budget",
+          "possible_angles": [
+            "общий топ",
+            "отдельная страна",
+            "конкретный город",
+            "конкретный курорт",
+            "зимний сезон",
+            "летний сезон",
+            "семейный формат",
+            "бюджетный вариант",
+            "романтический формат",
+            "маршрут на 3 дня",
+            "маршрут на неделю",
+            "без машины",
+            "для первого раза",
+            "для тех, кто уже был",
+            "из Москвы",
+            "из Санкт-Петербурга",
+            "из Сочи",
+            "из Краснодара"
+          ]
+        },
+        "city": "",
+        "country": "",
+        "price": "",
+        "dates": "",
+        "genre": "practical_travel",
+        "slot": "evening",
+        "score": 58,
+        "is_fallback": true,
+        "base_topic": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает",
+        "angle": "конкретный курорт",
+        "semantic_hash": "cc8c9b66c9da85f5"
+      },
+      "brief": {
+        "source_key": "fallback_topics",
+        "source_name": "Evergreen fallback",
+        "source_url": "configs/fallback_topics.json",
+        "topic": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт",
+        "genre": "practical_travel",
+        "slot": "evening",
+        "city": "",
+        "country": "",
+        "price": "",
+        "dates": "",
+        "editorial_angle": "конкретный курорт",
+        "target_emotion": "польза и уверенность",
+        "main_fact": "Fallback-тема для travel-канала: Как путешествовать дёшево: лайфхаки, о которых мало кто знает. Угол раскрытия: конкретный курорт.",
+        "practical_value": "готовая инструкция",
+        "cta_level": "soft",
+        "allowed_services": [
+          "insurance",
+          "foreign_cards",
+          "general_bot"
+        ],
+        "forbidden_claims": [
+          "не утверждать непроверенные цены",
+          "не выдумывать визовые правила"
+        ],
+        "media_query_ru": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт",
+        "media_query_en": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт travel"
+      },
+      "variants": [
+        {
+          "variant_id": 1,
+          "style": "тест OpenAI",
+          "score": 85,
+          "title": "Тестовый пост OpenAI",
+          "body": "Это тестовый редакционный пост, который имитирует успешный ответ OpenAI и проверяет полный pipeline без локального fallback-генератора.\n\n──────✦──────\n\n📌 Конкретика: в тексте есть маршрутная логика, сезон, даты, отель, рейс, багаж и практическая проверка перед бронированием. Такой пост не должен проходить как шаблон, он должен иметь понятную пользу для читателя.\n\n💡 Что проверить: сравните соседние даты, условия багажа, аэропорт вылета, район отеля и правила возврата. Если сдвинуть поездку на несколько дней, итоговая цена иногда заметно меняется.\n\n🧭 Практическая польза: читатель понимает, что нельзя покупать первый попавшийся вариант. Нужно проверить 2–3 сервиса, включить уведомления о скидках и заранее оценить дополнительные расходы.\n\n⚠️ Важно: цена и наличие мест могут быстро измениться, поэтому перед оплатой лучше открыть условия тарифа и проверить даты ещё раз.",
+          "cta_text": "Проверьте детали перед бронированием.",
+          "buttons": [
+            {
+              "text": "🛡 Проверить страховку",
+              "url": "https://cherehapa.tp.st/RIsddc4I?utm_source=mir_na_ladoni_bot&utm_content=practical_travel",
+              "service_key": "cherehapa",
+              "callback_data": ""
+            }
+          ],
+          "hashtags": [
+            "#мирналадони",
+            "#travel",
+            "#путешествия"
+          ],
+          "why_it_works": "заголовок конкретный; объём поста подходит Telegram; есть структура и короткие блоки; достаточно практической конкретики; есть практический следующий шаг; финал есть; финал связан с действием читателя; хештеги в норме",
+          "warnings": []
+        }
+      ],
+      "best_variant_id": 1,
+      "media": {
+        "path": "/mnt/data/final_work/mirnala_bot_v6_3_OPENAI_MASTER_PROMPT_NO_LOCAL_FALLBACK/media_cache/generated_как-путешествовать-д-шево-лайфхаки-о-кот.png",
+        "url": "",
+        "kind": "photo",
+        "source": "Generated fallback",
+        "author": "",
+        "license_url": "local_generated",
+        "generated": true,
+        "query_used": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт travel"
+      },
+      "diagnostics": {
+        "run_id": "1a6a0e6466",
+        "started_at": "2026-06-10T15:11:37",
+        "finished_at": "",
+        "steps": [
+          {
+            "time": "2026-06-10T15:11:37",
+            "name": "sources.collect",
+            "status": "ok",
+            "details": {
+              "signals": 0,
+              "errors": 1
+            }
+          },
+          {
+            "time": "2026-06-10T15:11:37",
+            "name": "fallback.generate",
+            "status": "ok",
+            "details": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт"
+          },
+          {
+            "time": "2026-06-10T15:11:37",
+            "name": "topic_guard.filter",
+            "status": "ok",
+            "details": 1
+          },
+          {
+            "time": "2026-06-10T15:11:37",
+            "name": "extract_classify_score",
+            "status": "ok",
+            "details": 1
+          },
+          {
+            "time": "2026-06-10T15:11:37",
+            "name": "rotation.rank",
+            "status": "ok",
+            "details": [
+              "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт"
+            ]
+          },
+          {
+            "time": "2026-06-10T15:11:37",
+            "name": "generation.context",
+            "status": "ok",
+            "details": {
+              "source_name": "Evergreen fallback",
+              "source_key": "fallback_topics",
+              "source_url": "configs/fallback_topics.json",
+              "topic": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт",
+              "genre": "practical_travel",
+              "slot": "evening",
+              "signal_score": 58,
+              "editorial_angle": "конкретный курорт",
+              "practical_value": "готовая инструкция",
+              "main_fact": "Fallback-тема для travel-канала: Как путешествовать дёшево: лайфхаки, о которых мало кто знает. Угол раскрытия: конкретный курорт."
+            }
+          },
+          {
+            "time": "2026-06-10T15:11:37",
+            "name": "ai_writer.generate",
+            "status": "ok",
+            "details": {
+              "provider": "OpenAI",
+              "model": "gpt-4.1-mini",
+              "prompt_file": "prompts/master_writer_ru.md",
+              "variants": 1
+            }
+          },
+          {
+            "time": "2026-06-10T15:11:37",
+            "name": "cta.apply",
+            "status": "ok",
+            "details": {
+              "buttons": [
+                "🛡 Проверить страховку"
+              ]
+            }
+          },
+          {
+            "time": "2026-06-10T15:11:37",
+            "name": "quality.gate",
+            "status": "ok",
+            "details": {
+              "decision": "publishable",
+              "score": 85,
+              "title": "Тестовый пост OpenAI",
+              "reasons": "заголовок конкретный; объём поста подходит Telegram; есть структура и короткие блоки; достаточно практической конкретики; есть практический следующий шаг; финал есть; финал связан с действием читателя; хештеги в норме",
+              "warnings": []
+            }
+          },
+          {
+            "time": "2026-06-10T15:11:37",
+            "name": "media.find_or_generate",
+            "status": "ok",
+            "details": {
+              "path": "/mnt/data/final_work/mirnala_bot_v6_3_OPENAI_MASTER_PROMPT_NO_LOCAL_FALLBACK/media_cache/generated_как-путешествовать-д-шево-лайфхаки-о-кот.png",
+              "url": "",
+              "kind": "photo",
+              "source": "Generated fallback",
+              "author": "",
+              "license_url": "local_generated",
+              "generated": true,
+              "query_used": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт travel"
+            }
+          }
+        ],
+        "counters": {
+          "sources_checked": 20,
+          "sources_ok": 0,
+          "source_errors": 1,
+          "signals_found": 0,
+          "after_guard": 1,
+          "after_dedup": 1,
+          "candidates": 1,
+          "gpt_variants": 1,
+          "openai_ok": 1,
+          "media": 1
+        },
+        "source_errors": {
+          "sources": "source fetch skipped by MIRNALA_SKIP_SOURCE_FETCH"
+        },
+        "result": "started",
+        "message": ""
+      }
+    }
+  },
+  "last_result": "published",
+  "last_run": {
+    "run_id": "a968457897",
+    "started_at": "2026-06-10T15:11:37",
+    "finished_at": "2026-06-10T15:11:37",
+    "steps": [
+      {
+        "time": "2026-06-10T15:11:37",
+        "name": "sources.collect",
+        "status": "ok",
+        "details": {
+          "signals": 0,
+          "errors": 1
+        }
+      },
+      {
+        "time": "2026-06-10T15:11:37",
+        "name": "fallback.generate",
+        "status": "ok",
+        "details": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт"
+      },
+      {
+        "time": "2026-06-10T15:11:37",
+        "name": "topic_guard.filter",
+        "status": "ok",
+        "details": 1
+      },
+      {
+        "time": "2026-06-10T15:11:37",
+        "name": "extract_classify_score",
+        "status": "ok",
+        "details": 1
+      },
+      {
+        "time": "2026-06-10T15:11:37",
+        "name": "rotation.rank",
+        "status": "ok",
+        "details": [
+          "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт"
+        ]
+      },
+      {
+        "time": "2026-06-10T15:11:37",
+        "name": "generation.context",
+        "status": "ok",
+        "details": {
+          "source_name": "Evergreen fallback",
+          "source_key": "fallback_topics",
+          "source_url": "configs/fallback_topics.json",
+          "topic": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт",
+          "genre": "practical_travel",
+          "slot": "evening",
+          "signal_score": 58,
+          "editorial_angle": "конкретный курорт",
+          "practical_value": "готовая инструкция",
+          "main_fact": "Fallback-тема для travel-канала: Как путешествовать дёшево: лайфхаки, о которых мало кто знает. Угол раскрытия: конкретный курорт."
+        }
+      },
+      {
+        "time": "2026-06-10T15:11:37",
+        "name": "ai_writer.generate",
+        "status": "ok",
+        "details": {
+          "provider": "OpenAI",
+          "model": "gpt-4.1-mini",
+          "prompt_file": "prompts/master_writer_ru.md",
+          "variants": 1
+        }
+      },
+      {
+        "time": "2026-06-10T15:11:37",
+        "name": "cta.apply",
+        "status": "ok",
+        "details": {
+          "buttons": [
+            "🛡 Проверить страховку"
+          ]
+        }
+      },
+      {
+        "time": "2026-06-10T15:11:37",
+        "name": "quality.gate",
+        "status": "ok",
+        "details": {
+          "decision": "publishable",
+          "score": 85,
+          "title": "Тестовый пост OpenAI",
+          "reasons": "заголовок конкретный; объём поста подходит Telegram; есть структура и короткие блоки; достаточно практической конкретики; есть практический следующий шаг; финал есть; финал связан с действием читателя; хештеги в норме",
+          "warnings": []
+        }
+      },
+      {
+        "time": "2026-06-10T15:11:37",
+        "name": "media.find_or_generate",
+        "status": "ok",
+        "details": {
+          "path": "/mnt/data/final_work/mirnala_bot_v6_3_OPENAI_MASTER_PROMPT_NO_LOCAL_FALLBACK/media_cache/generated_как-путешествовать-д-шево-лайфхаки-о-кот.png",
+          "url": "",
+          "kind": "photo",
+          "source": "Generated fallback",
+          "author": "",
+          "license_url": "local_generated",
+          "generated": true,
+          "query_used": "Как путешествовать дёшево: лайфхаки, о которых мало кто знает — конкретный курорт travel"
+        }
+      },
+      {
+        "time": "2026-06-10T15:11:37",
+        "name": "publisher.publish",
+        "status": "ok",
+        "details": {
+          "@dry_run": {
+            "ok": true,
+            "dry_run": true,
+            "channel": "@dry_run",
+            "parts": 2
+          }
+        }
+      }
+    ],
+    "counters": {
+      "sources_checked": 20,
+      "sources_ok": 0,
+      "source_errors": 1,
+      "signals_found": 0,
+      "after_guard": 1,
+      "after_dedup": 1,
+      "candidates": 1,
+      "gpt_variants": 1,
+      "openai_ok": 1,
+      "media": 1,
+      "published": 1
+    },
+    "source_errors": {
+      "sources": "source fetch skipped by MIRNALA_SKIP_SOURCE_FETCH"
+    },
+    "result": "published",
+    "message": "Опубликовано: Тестовый пост OpenAI"
+  },
+  "preview_history": [
+    {
+      "time": 1781104223,
+      "title": "Тестовый пост OpenAI",
+      "url": "",
+      "source_key": "fallback_topics",
+      "genre": "practical_travel",
+      "city": "",
+      "country": "",
+      "semantic_hash": "bc8f19d5c1f3da78"
+    },
+    {
+      "time": 1781104297,
+      "title": "Тестовый пост OpenAI",
+      "url": "",
+      "source_key": "fallback_topics",
+      "genre": "practical_travel",
+      "city": "",
+      "country": "",
+      "semantic_hash": "cc8c9b66c9da85f5"
+    }
+  ]
+}
