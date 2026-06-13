@@ -1,0 +1,11 @@
+{
+  "autopost_enabled": false,
+  "schedule_times": [
+    "09:00",
+    "14:00",
+    "19:00"
+  ],
+  "channels": [],
+  "sessions": {},
+  "preview_history": []
+}

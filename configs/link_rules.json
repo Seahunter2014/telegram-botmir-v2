@@ -1,0 +1,153 @@
+{
+  "flight_deal": {
+    "categories": [
+      "flights",
+      "hotels"
+    ],
+    "max_buttons": 2,
+    "format": "text_and_button",
+    "forbid": [
+      "telegram_source"
+    ]
+  },
+  "tour_offer": {
+    "categories": [
+      "tours",
+      "insurance"
+    ],
+    "max_buttons": 2,
+    "format": "text_and_button"
+  },
+  "hotel_post": {
+    "categories": [
+      "hotels",
+      "tours"
+    ],
+    "max_buttons": 2,
+    "format": "text_and_button"
+  },
+  "destination_post": {
+    "categories": [
+      "flights",
+      "hotels",
+      "excursions",
+      "general_bot"
+    ],
+    "max_buttons": 2,
+    "format": "text_and_button"
+  },
+  "event_trip": {
+    "categories": [
+      "events",
+      "flights",
+      "hotels"
+    ],
+    "max_buttons": 3,
+    "format": "text_and_button"
+  },
+  "weekend_trip": {
+    "categories": [
+      "flights",
+      "hotels",
+      "tours",
+      "general_bot"
+    ],
+    "max_buttons": 2,
+    "format": "text_and_button"
+  },
+  "family_trip": {
+    "categories": [
+      "tours",
+      "hotels",
+      "insurance"
+    ],
+    "max_buttons": 2,
+    "format": "text_and_button"
+  },
+  "activities_post": {
+    "categories": [
+      "excursions",
+      "flights",
+      "hotels"
+    ],
+    "max_buttons": 3,
+    "format": "text_and_button"
+  },
+  "weekend_activity": {
+    "categories": [
+      "excursions",
+      "flights",
+      "hotels"
+    ],
+    "max_buttons": 3,
+    "format": "text_and_button"
+  },
+  "visa_or_residence": {
+    "categories": [
+      "foreign_cards",
+      "insurance"
+    ],
+    "max_buttons": 1,
+    "format": "soft_cta",
+    "forbid": [
+      "flights"
+    ]
+  },
+  "payment_abroad": {
+    "categories": [
+      "foreign_cards"
+    ],
+    "max_buttons": 2,
+    "format": "soft_cta",
+    "forbid": [
+      "flights"
+    ]
+  },
+  "practical_travel": {
+    "categories": [
+      "insurance",
+      "foreign_cards",
+      "general_bot"
+    ],
+    "max_buttons": 1,
+    "format": "soft_cta"
+  },
+  "inspiration_story": {
+    "categories": [],
+    "max_buttons": 0,
+    "format": "universal_cta"
+  },
+  "top_list": {
+    "categories": [
+      "general_bot",
+      "flights",
+      "hotels"
+    ],
+    "max_buttons": 2,
+    "format": "text_and_button"
+  },
+  "route": {
+    "categories": [
+      "flights",
+      "hotels",
+      "excursions",
+      "car_rental"
+    ],
+    "max_buttons": 3,
+    "format": "text_and_button"
+  },
+  "travel_news": {
+    "categories": [
+      "general_bot"
+    ],
+    "max_buttons": 1,
+    "format": "soft_cta"
+  },
+  "default": {
+    "categories": [
+      "general_bot"
+    ],
+    "max_buttons": 1,
+    "format": "universal_cta"
+  }
+}
