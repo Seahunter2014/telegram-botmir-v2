@@ -29,6 +29,9 @@ docs/PROJECT_MAP.md
 docs/QA_REPORT.md
 docs/QA_REPORT_v6_4.md
 main.py
+media_cache/generated_morocco-travel.png
+media_cache/generated_где-искать-деш-вые-авиабилеты-проверенны.png
+media_cache/generated_как-путешествовать-д-шево-лайфхаки-о-кот.png
 prompts/anti_template_ru.md
 prompts/cta_rules_ru.md
 prompts/editorial_planner_ru.md

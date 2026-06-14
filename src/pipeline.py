@@ -117,12 +117,28 @@ class EditorialPipeline:
     async def prepare_post(self, test_index: int = 0, remember_preview: bool = True) -> tuple[PreparedPost | None, RunReport]:
         report = RunReport()
         candidates = await self.collect_candidates(report, test_index=test_index)
+        current_slot = self.classifier.current_slot()
+
+        # Автопостинг не должен останавливаться, если сильная живая тема не прошла Quality Gate.
+        # Поэтому к реальным кандидатам всегда добавляем резерв evergreen/fallback-тем: они проходят тот же OpenAI + Quality Gate,
+        # но дают боту запас тем для публикации вместо пустого отчёта.
+        reserve: list[Signal] = []
+        if self.settings.allow_fallback_autopublish:
+            for i in range(8):
+                fb = self.fallback.generate(current_slot, test_index + 100 + i)
+                fb = self.extractor.enrich(fb)
+                fb = self.classifier.classify(fb)
+                fb = self.scorer.score(fb, current_slot=current_slot)
+                reserve.append(fb)
+            candidates = list(candidates) + reserve
+            report.step("fallback.reserve", "ok", {"added": len(reserve), "topics": [x.title for x in reserve[:5]]})
+
         if not candidates:
             report.finish("error", "Нет кандидатов и fallback не сработал")
             return None, report
 
-        max_candidates = 5
-        max_rewrite_attempts = 5
+        max_candidates = min(len(candidates), 14)
+        max_rewrite_attempts = 8
         last_scored: list[PostVariant] = []
         last_signal: Signal | None = None
         last_brief = None
@@ -245,6 +261,56 @@ class EditorialPipeline:
                 "topic": signal.title,
                 "reason": f"не удалось поднять качество до {self.quality.min_score}",
             })
+
+        # Последний аварийный редакционный цикл: если все темы не вытянулись, берём чистую evergreen-тему
+        # и просим OpenAI написать пост с жёстким feedback. Это не локальная болванка, а последняя попытка OpenAI.
+        if self.settings.allow_fallback_autopublish:
+            emergency = self.fallback.generate(current_slot, test_index + 999)
+            emergency = self.scorer.score(self.classifier.classify(self.extractor.enrich(emergency)), current_slot=current_slot)
+            brief = self.brief_engine.build(emergency)
+            previous_bad = last_scored[0] if last_scored else None
+            report.step("emergency_fallback.start", "ok", {"topic": emergency.title})
+            for attempt in range(1, 9):
+                if previous_bad is None:
+                    variants, best_id, writer_warnings = await self.writer.generate(brief)
+                    action = "generate"
+                else:
+                    feedback = self.quality.feedback_for_rewrite(previous_bad) + "\nЭто аварийная попытка автопостинга: пост должен быть опубликован, но только если станет качественным, конкретным и красиво оформленным."
+                    variants, best_id, writer_warnings = await self.writer.improve(brief, previous_bad, feedback, attempt)
+                    action = "improve"
+                report.count("gpt_variants", report.counters.get("gpt_variants", 0) + len(variants))
+                report.step("emergency_fallback.openai", "error" if writer_warnings else "ok", {"attempt": attempt, "action": action, "warnings": writer_warnings})
+                if not variants:
+                    break
+                processed = []
+                for v in variants:
+                    v = self.engagement.improve(v, brief)
+                    v = self.fact.check(v, brief)
+                    v = self.cta.apply(v, brief)
+                    processed.append(v)
+                best, scored = self.quality.choose(processed, brief)
+                last_scored = scored
+                if best:
+                    media = self.media.find_or_generate(brief, best)
+                    report.count("media", 1 if media and (media.path or media.url) else 0)
+                    report.step("emergency_fallback.quality", "ok", {"score": best.score, "title": best.title, "attempt": attempt})
+                    report.step("media.find_or_generate", "ok", media.to_dict() if media else {})
+                    session_id = self.state.new_session_id()
+                    prepared = PreparedPost(
+                        session_id=session_id,
+                        signal=emergency,
+                        brief=brief,
+                        variants=scored,
+                        best_variant_id=best.variant_id,
+                        media=media,
+                        diagnostics=report.to_dict(),
+                    )
+                    self.state.save_session(prepared.to_dict())
+                    if remember_preview:
+                        self.state.remember_preview(emergency, best.title)
+                    report.finish("prepared", f"Подготовлено через emergency fallback: {best.title}")
+                    return prepared, report
+                previous_bad = scored[0] if scored else previous_bad
 
         top = last_scored[0] if last_scored else None
         if top:

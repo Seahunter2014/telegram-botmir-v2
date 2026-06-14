@@ -74,7 +74,7 @@ def load_settings() -> Settings:
         telegram_channel_id=env("TELEGRAM_CHANNEL_ID"),
         test_channel_id=env("TEST_CHANNEL_ID"),
         openai_api_key=env("OPENAI_API_KEY"),
-        openai_model=env("OPENAI_MODEL", "gpt-4.1-mini"),
+        openai_model=env("OPENAI_MODEL", "gpt-4.1"),
         openai_temperature=temperature,
         pexels_api_key=env("PEXELS_API_KEY"),
         unsplash_access_key=env("UNSPLASH_ACCESS_KEY"),

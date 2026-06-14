@@ -318,12 +318,13 @@ async def test_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode="HTML",
         disable_web_page_preview=True,
     )
-    buttons = [
-        [InlineKeyboardButton("🚀 Опубликовать", callback_data=f"publish:{prepared.session_id}:{best.variant_id}")],
-        [InlineKeyboardButton("🔁 Новая тема", callback_data=f"rewrite:{idx + 1}"), InlineKeyboardButton("⛔ Отклонить", callback_data=f"reject:{prepared.session_id}")],
-    ]
-    await update.effective_message.reply_text("Выберите действие:", reply_markup=InlineKeyboardMarkup(buttons))
-    await send_long(update.effective_message, report.admin_text())
+    test_channel = settings.test_channel_id or settings.telegram_channel_id
+    await update.effective_message.reply_text(f"Публикую тестовый пост в канал: {test_channel}")
+    result, pub_report = await pipeline.publish_prepared(prepared, variant_id=best.variant_id, channels=[test_channel], dry_run=False)
+    await send_long(update.effective_message, pub_report.admin_text())
+    rk = rating_keyboard_from_report(pub_report)
+    if rk:
+        await update.effective_message.reply_text("Оцените тестовый опубликованный пост от 1 до 10:", reply_markup=rk)
 
 
 async def run_once_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -488,7 +489,8 @@ async def scheduled_autopost(app: Application) -> None:
     if not data.get("autopost_enabled"):
         return
     pipeline = EditorialPipeline(settings, bot=app.bot)
-    prepared, result, report = await pipeline.run_once()
+    channels = state.channels(settings.telegram_channel_id)
+    prepared, result, report = await pipeline.run_once(channels=channels, dry_run=False)
     if settings.telegram_admin_id:
         try:
             await app.bot.send_message(chat_id=int(settings.telegram_admin_id), text=report.admin_text()[:3900])
