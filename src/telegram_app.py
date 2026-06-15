@@ -39,6 +39,42 @@ state = StateStore()
 scheduler = BotScheduler(settings.schedule_timezone)
 source_health = SourceHealthStore()
 
+DEFAULT_SCHEDULE_TIMES = ["09:00", "14:00", "19:00"]
+
+
+def normalized_schedule_times(persist: bool = True) -> list[str]:
+    """Возвращает рабочее расписание. Пустой список в state считается ошибкой и заменяется дефолтом."""
+    data = state.load()
+    raw = data.get("schedule_times")
+    if isinstance(raw, str):
+        raw = [x.strip() for x in raw.replace(";", ",").split(",") if x.strip()]
+    if not raw:
+        raw = DEFAULT_SCHEDULE_TIMES[:]
+        if persist:
+            data["schedule_times"] = raw
+            state.save(data)
+    return [str(x).strip() for x in raw if str(x).strip()]
+
+
+def ensure_runtime_state() -> dict[str, Any]:
+    """Чинит критичные пустые поля state при старте, чтобы автопостинг не оставался без расписания/канала."""
+    data = state.load()
+    changed = False
+    raw_schedule = data.get("schedule_times")
+    if not raw_schedule:
+        data["schedule_times"] = DEFAULT_SCHEDULE_TIMES[:]
+        changed = True
+    channels = data.get("channels")
+    if (not channels) and settings.telegram_channel_id:
+        data["channels"] = [settings.telegram_channel_id]
+        changed = True
+    if "autopost_enabled" not in data:
+        data["autopost_enabled"] = True
+        changed = True
+    if changed:
+        state.save(data)
+    return data
+
 
 async def send_long(message, text: str, **kwargs) -> None:
     text = text or ""
@@ -136,7 +172,7 @@ async def status_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
         "📊 Статус бота",
         f"Версия: {VERSION}",
         f"Автопостинг: {'включён' if data.get('autopost_enabled') else 'выключен'}",
-        f"Расписание: {', '.join(data.get('schedule_times', []))}",
+        f"Расписание: {', '.join(normalized_schedule_times())}",
         f"Таймзона: {settings.schedule_timezone}",
         f"Следующий запуск: {next_runs[0] if next_runs else 'не запланирован'}",
         f"Каналы: {', '.join(channels) if channels else 'не заданы'}",
@@ -183,7 +219,7 @@ async def schedule_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         return
     data = state.load()
     await update.effective_message.reply_text(
-        f"🕒 Расписание: {', '.join(data.get('schedule_times', []))}\n\nДля замены нажмите «{BTN_SET_SCHEDULE}» или отправьте:\n/schedule_set 09:00,14:00,19:00",
+        f"🕒 Расписание: {', '.join(normalized_schedule_times())}\n\nДля замены нажмите «{BTN_SET_SCHEDULE}» или отправьте:\n/schedule_set 09:00,14:00,19:00",
         reply_markup=main_menu(),
     )
 
@@ -279,7 +315,7 @@ async def autopost_on_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
     if not await admin_only(update):
         return
     data = state.load(); data["autopost_enabled"] = True; state.save(data)
-    scheduler.reschedule(data.get("schedule_times", ["09:00", "14:00", "19:00"]), lambda: scheduled_autopost(context.application))
+    scheduler.reschedule(normalized_schedule_times(), lambda: scheduled_autopost(context.application))
     await update.effective_message.reply_text("Автопостинг включён.", reply_markup=main_menu())
 
 
@@ -321,6 +357,10 @@ async def test_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     test_channel = settings.test_channel_id or settings.telegram_channel_id
     await update.effective_message.reply_text(f"Публикую тестовый пост в канал: {test_channel}")
     result, pub_report = await pipeline.publish_prepared(prepared, variant_id=best.variant_id, channels=[test_channel], dry_run=False)
+    # Если тестовый канал задан неверно, не молчим: пробуем основной канал и явно показываем это в отчёте.
+    if not any(v.get("ok") for v in result.values()) and test_channel != settings.telegram_channel_id:
+        await update.effective_message.reply_text("Тестовый канал не принял публикацию. Пробую основной канал публикации…")
+        result, pub_report = await pipeline.publish_prepared(prepared, variant_id=best.variant_id, channels=[settings.telegram_channel_id], dry_run=False)
     await send_long(update.effective_message, pub_report.admin_text())
     rk = rating_keyboard_from_report(pub_report)
     if rk:
@@ -485,11 +525,15 @@ async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> Non
 
 
 async def scheduled_autopost(app: Application) -> None:
-    data = state.load()
+    data = ensure_runtime_state()
     if not data.get("autopost_enabled"):
         return
-    pipeline = EditorialPipeline(settings, bot=app.bot)
     channels = state.channels(settings.telegram_channel_id)
+    if not channels:
+        log.error("Автопостинг остановлен: не задан ни один канал публикации")
+        return
+    log.info("Запуск автопостинга по расписанию. Каналы: %s", channels)
+    pipeline = EditorialPipeline(settings, bot=app.bot)
     prepared, result, report = await pipeline.run_once(channels=channels, dry_run=False)
     if settings.telegram_admin_id:
         try:
@@ -503,9 +547,10 @@ async def scheduled_autopost(app: Application) -> None:
 
 async def post_init(app: Application) -> None:
     scheduler.start()
-    data = state.load()
+    data = ensure_runtime_state()
     if data.get("autopost_enabled"):
-        scheduler.reschedule(data.get("schedule_times", ["09:00", "14:00", "19:00"]), lambda: scheduled_autopost(app))
+        scheduler.reschedule(normalized_schedule_times(), lambda: scheduled_autopost(app))
+        log.info("Автопостинг запланирован: %s", ", ".join(normalized_schedule_times(False)))
 
 
 async def post_shutdown(app: Application) -> None:

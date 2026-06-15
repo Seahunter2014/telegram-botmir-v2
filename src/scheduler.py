@@ -26,9 +26,23 @@ class BotScheduler:
         for item in times:
             if not item or ":" not in item:
                 continue
-            hour, minute = item.split(":", 1)
-            trigger = CronTrigger(hour=int(hour), minute=int(minute), timezone=self.timezone)
-            self.scheduler.add_job(lambda jf=job_func: asyncio.create_task(self._run_locked(jf)), trigger=trigger, id=f"autopost_{hour}_{minute}", replace_existing=True, misfire_grace_time=180)
+            try:
+                hour, minute = item.split(":", 1)
+                hour_i = int(hour)
+                minute_i = int(minute)
+            except Exception:
+                continue
+            if not (0 <= hour_i <= 23 and 0 <= minute_i <= 59):
+                continue
+            trigger = CronTrigger(hour=hour_i, minute=minute_i, timezone=self.timezone)
+            self.scheduler.add_job(
+                lambda jf=job_func: asyncio.create_task(self._run_locked(jf)),
+                trigger=trigger,
+                id=f"autopost_{hour_i:02d}_{minute_i:02d}",
+                replace_existing=True,
+                misfire_grace_time=600,
+                coalesce=True,
+            )
 
     async def _run_locked(self, job_func: Callable[[], Awaitable[None]]) -> None:
         if self._lock.locked():
@@ -37,7 +51,5 @@ class BotScheduler:
             await job_func()
 
     def next_runs(self) -> list[str]:
-        out=[]
-        for job in self.scheduler.get_jobs():
-            out.append(f"{job.id}: {job.next_run_time}")
-        return out
+        jobs = sorted(self.scheduler.get_jobs(), key=lambda j: j.next_run_time or 0)
+        return [f"{job.id}: {job.next_run_time}" for job in jobs]
