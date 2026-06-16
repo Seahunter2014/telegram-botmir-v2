@@ -1,6 +1,6 @@
 # Мир на ладони — AI-редакция travel Telegram-канала
 
-Версия: `2026.06.13 AI REDAKTOR BOT FINAL — ITERATIVE QUALITY, ADMIN RATINGS, VISUAL TELEGRAM STYLE`.
+Версия: `2026.06.16 AI REDAKTOR BOT FINAL — ASYNC AUTOPUBLISH, UNIQUE TOPICS, SINGLE REWRITE, RATINGS MEMORY`.
 
 Бот работает как AI-редакция: ищет travel-сигналы, фильтрует мусор, выбирает тему, генерирует пост через OpenAI, переписывает его до прохода Quality Gate, проверяет качество, подбирает CTA/кнопки/медиа, публикует в канал и пишет диагностический отчёт.
 

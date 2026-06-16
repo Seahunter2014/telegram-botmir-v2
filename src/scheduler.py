@@ -35,12 +35,15 @@ class BotScheduler:
             if not (0 <= hour_i <= 23 and 0 <= minute_i <= 59):
                 continue
             trigger = CronTrigger(hour=hour_i, minute=minute_i, timezone=self.timezone)
+            async def runner(jf=job_func):
+                await self._run_locked(jf)
+
             self.scheduler.add_job(
-                lambda jf=job_func: asyncio.create_task(self._run_locked(jf)),
+                runner,
                 trigger=trigger,
                 id=f"autopost_{hour_i:02d}_{minute_i:02d}",
                 replace_existing=True,
-                misfire_grace_time=600,
+                misfire_grace_time=1800,
                 coalesce=True,
             )
 

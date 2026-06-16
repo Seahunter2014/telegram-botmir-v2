@@ -26,7 +26,7 @@ from .source_manager import SourceManager
 from .source_registry import SourceRegistry
 from .state_store import StateStore
 from .telegram_post_writer import TelegramPostWriter
-from .text_utils import now_iso
+from .text_utils import now_iso, topic_key
 from .topic_classifier import TopicClassifier
 from .topic_guard import TopicGuard
 
@@ -115,38 +115,44 @@ class EditorialPipeline:
         return ranked
 
     async def prepare_post(self, test_index: int = 0, remember_preview: bool = True) -> tuple[PreparedPost | None, RunReport]:
+        """Готовит пост без зацикливания на одной теме.
+
+        Правило пользователя:
+        - каждая новая генерация берёт новую тему, использованные/отклонённые темы уходят в память;
+        - если первая версия ниже 80/100 — ровно один раз переписать через OpenAI;
+        - вторую версию публикуем такой, какая получилась, если OpenAI вернул валидный пост;
+        - никаких 8 попыток и бесконечного улучшения.
+        """
         report = RunReport()
         candidates = await self.collect_candidates(report, test_index=test_index)
         current_slot = self.classifier.current_slot()
 
-        # Автопостинг не должен останавливаться, если сильная живая тема не прошла Quality Gate.
-        # Поэтому к реальным кандидатам всегда добавляем резерв evergreen/fallback-тем: они проходят тот же OpenAI + Quality Gate,
-        # но дают боту запас тем для публикации вместо пустого отчёта.
-        reserve: list[Signal] = []
         if self.settings.allow_fallback_autopublish:
-            for i in range(8):
+            reserve: list[Signal] = []
+            for i in range(12):
                 fb = self.fallback.generate(current_slot, test_index + 100 + i)
                 fb = self.extractor.enrich(fb)
                 fb = self.classifier.classify(fb)
                 fb = self.scorer.score(fb, current_slot=current_slot)
-                reserve.append(fb)
-            candidates = list(candidates) + reserve
-            report.step("fallback.reserve", "ok", {"added": len(reserve), "topics": [x.title for x in reserve[:5]]})
+                dup, _ = self.dedup.is_duplicate(fb)
+                if not dup:
+                    reserve.append(fb)
+            if reserve:
+                candidates = list(candidates) + reserve
+                report.step("fallback.reserve", "ok", {"added": len(reserve), "topics": [x.title for x in reserve[:5]]})
 
         if not candidates:
-            report.finish("error", "Нет кандидатов и fallback не сработал")
+            report.finish("error", "Нет новых тем: все найденные сигналы уже использовались или отфильтрованы")
             return None, report
 
-        max_candidates = min(len(candidates), 14)
-        max_rewrite_attempts = 8
-        last_scored: list[PostVariant] = []
-        last_signal: Signal | None = None
-        last_brief = None
+        max_candidates = min(len(candidates), 18)
+        last_error = ""
 
         for candidate_no, signal in enumerate(candidates[:max_candidates], 1):
-            last_signal = signal
+            # Сразу запоминаем тему, чтобы /test, онлайн-публикация и автопостинг не возвращались к ней снова.
+            self.state.remember_topic_attempt(signal, reason="generation_started")
+
             brief = self.brief_engine.build(signal)
-            last_brief = brief
             report.step("generation.context", "ok", {
                 "candidate_no": candidate_no,
                 "source_name": signal.source_name,
@@ -161,168 +167,122 @@ class EditorialPipeline:
                 "main_fact": brief.main_fact,
             })
 
-            previous_bad: PostVariant | None = None
-            for attempt in range(1, max_rewrite_attempts + 1):
-                if attempt == 1 or previous_bad is None:
-                    variants, best_id, writer_warnings = await self.writer.generate(brief)
-                    generation_action = "generate"
-                else:
-                    feedback = self.quality.feedback_for_rewrite(previous_bad)
-                    variants, best_id, writer_warnings = await self.writer.improve(brief, previous_bad, feedback, attempt)
-                    generation_action = "improve"
-
-                report.count("gpt_variants", report.counters.get("gpt_variants", 0) + len(variants))
-                if writer_warnings:
-                    report.count("openai_error", report.counters.get("openai_error", 0) + 1)
-                    report.step("ai_writer.generate", "error", {
-                        "provider": "OpenAI",
-                        "model": self.settings.openai_model,
-                        "prompt_file": MASTER_PROMPT_FILE,
-                        "candidate_no": candidate_no,
-                        "attempt": attempt,
-                        "action": generation_action,
-                        "warnings": writer_warnings,
-                    })
-                else:
-                    report.count("openai_ok", report.counters.get("openai_ok", 0) + 1)
-                    report.step("ai_writer.generate", "ok", {
-                        "provider": "OpenAI",
-                        "model": self.settings.openai_model,
-                        "prompt_file": MASTER_PROMPT_FILE,
-                        "candidate_no": candidate_no,
-                        "attempt": attempt,
-                        "action": generation_action,
-                        "variants": len(variants),
-                    })
-                if not variants:
-                    break
-
-                processed: list[PostVariant] = []
-                for v in variants:
-                    v = self.engagement.improve(v, brief)
-                    v = self.fact.check(v, brief)
-                    v = self.cta.apply(v, brief)
-                    processed.append(v)
-                if processed:
-                    report.step("cta.apply", "ok", {"buttons": [b.text for b in processed[0].buttons]})
-
-                best, scored = self.quality.choose(processed, brief)
-                last_scored = scored
-                top = scored[0] if scored else None
-                if best:
-                    report.step("quality.gate", "ok", {
-                        "decision": "publishable",
-                        "score": best.score,
-                        "title": best.title,
-                        "reasons": best.why_it_works,
-                        "warnings": best.warnings,
-                        "candidate_no": candidate_no,
-                        "attempt": attempt,
-                        "rewrite_attempts": attempt - 1,
-                    })
-                    media = self.media.find_or_generate(brief, best)
-                    report.count("media", 1 if media and (media.path or media.url) else 0)
-                    report.step("media.find_or_generate", "ok", media.to_dict() if media else {})
-
-                    session_id = self.state.new_session_id()
-                    prepared = PreparedPost(
-                        session_id=session_id,
-                        signal=signal,
-                        brief=brief,
-                        variants=scored,
-                        best_variant_id=best.variant_id,
-                        media=media,
-                        diagnostics=report.to_dict(),
-                    )
-                    self.state.save_session(prepared.to_dict())
-                    if remember_preview:
-                        self.state.remember_preview(signal, best.title)
-                    report.finish("prepared", f"Подготовлено: {best.title}")
-                    return prepared, report
-
-                if top:
-                    previous_bad = top
-                    report.step("quality.gate", "rewrite", {
-                        "decision": "rewrite",
-                        "score": top.score,
-                        "title": top.title,
-                        "reasons": top.why_it_works,
-                        "warnings": top.warnings,
-                        "candidate_no": candidate_no,
-                        "attempt": attempt,
-                        "next_action": "переписать этот же пост и повысить качество",
-                    })
-                    continue
-                break
-
-            self._remember_rejected(signal, f"не удалось поднять качество до {self.quality.min_score} после {max_rewrite_attempts} попыток")
-            report.step("candidate.skip_after_rewrites", "skip", {
+            variants, best_id, writer_warnings = await self.writer.generate(brief)
+            report.count("gpt_variants", report.counters.get("gpt_variants", 0) + len(variants))
+            report.step("ai_writer.generate", "error" if writer_warnings else "ok", {
+                "provider": "OpenAI",
+                "model": self.settings.openai_model,
+                "prompt_file": MASTER_PROMPT_FILE,
                 "candidate_no": candidate_no,
-                "topic": signal.title,
-                "reason": f"не удалось поднять качество до {self.quality.min_score}",
+                "attempt": 1,
+                "action": "generate",
+                "variants": len(variants),
+                "warnings": writer_warnings,
             })
+            if writer_warnings:
+                report.count("openai_error", report.counters.get("openai_error", 0) + 1)
+            else:
+                report.count("openai_ok", report.counters.get("openai_ok", 0) + 1)
 
-        # Последний аварийный редакционный цикл: если все темы не вытянулись, берём чистую evergreen-тему
-        # и просим OpenAI написать пост с жёстким feedback. Это не локальная болванка, а последняя попытка OpenAI.
-        if self.settings.allow_fallback_autopublish:
-            emergency = self.fallback.generate(current_slot, test_index + 999)
-            emergency = self.scorer.score(self.classifier.classify(self.extractor.enrich(emergency)), current_slot=current_slot)
-            brief = self.brief_engine.build(emergency)
-            previous_bad = last_scored[0] if last_scored else None
-            report.step("emergency_fallback.start", "ok", {"topic": emergency.title})
-            for attempt in range(1, 9):
-                if previous_bad is None:
-                    variants, best_id, writer_warnings = await self.writer.generate(brief)
-                    action = "generate"
-                else:
-                    feedback = self.quality.feedback_for_rewrite(previous_bad) + "\nЭто аварийная попытка автопостинга: пост должен быть опубликован, но только если станет качественным, конкретным и красиво оформленным."
-                    variants, best_id, writer_warnings = await self.writer.improve(brief, previous_bad, feedback, attempt)
-                    action = "improve"
-                report.count("gpt_variants", report.counters.get("gpt_variants", 0) + len(variants))
-                report.step("emergency_fallback.openai", "error" if writer_warnings else "ok", {"attempt": attempt, "action": action, "warnings": writer_warnings})
-                if not variants:
-                    break
-                processed = []
-                for v in variants:
-                    v = self.engagement.improve(v, brief)
-                    v = self.fact.check(v, brief)
-                    v = self.cta.apply(v, brief)
-                    processed.append(v)
-                best, scored = self.quality.choose(processed, brief)
-                last_scored = scored
-                if best:
-                    media = self.media.find_or_generate(brief, best)
-                    report.count("media", 1 if media and (media.path or media.url) else 0)
-                    report.step("emergency_fallback.quality", "ok", {"score": best.score, "title": best.title, "attempt": attempt})
-                    report.step("media.find_or_generate", "ok", media.to_dict() if media else {})
-                    session_id = self.state.new_session_id()
-                    prepared = PreparedPost(
-                        session_id=session_id,
-                        signal=emergency,
-                        brief=brief,
-                        variants=scored,
-                        best_variant_id=best.variant_id,
-                        media=media,
-                        diagnostics=report.to_dict(),
-                    )
-                    self.state.save_session(prepared.to_dict())
-                    if remember_preview:
-                        self.state.remember_preview(emergency, best.title)
-                    report.finish("prepared", f"Подготовлено через emergency fallback: {best.title}")
-                    return prepared, report
-                previous_bad = scored[0] if scored else previous_bad
+            if not variants:
+                last_error = "OpenAI не вернул валидный пост"
+                self._remember_rejected(signal, last_error)
+                continue
 
-        top = last_scored[0] if last_scored else None
-        if top:
-            report.step("quality.gate", "reject", {
-                "decision": "reject",
+            processed = self._postprocess_variants(variants, brief, report)
+            scored = sorted([self.quality.score_variant(self.quality.checker.sanitize(v), brief) for v in processed], key=lambda v: v.score, reverse=True)
+            top = scored[0] if scored else None
+            if not top:
+                last_error = "Quality Gate не смог оценить пост"
+                self._remember_rejected(signal, last_error)
+                continue
+
+            report.step("quality.gate", "ok" if top.score >= 80 else "rewrite", {
+                "decision": "publishable" if top.score >= 80 else "rewrite_once",
                 "score": top.score,
                 "title": top.title,
                 "reasons": top.why_it_works,
                 "warnings": top.warnings,
+                "candidate_no": candidate_no,
+                "attempt": 1,
+                "rewrite_attempts": 0,
             })
-        report.finish("error", f"Не удалось получить пост качества {self.quality.min_score}+ после перебора тем и переписываний")
+
+            final_variant = top
+            final_scored = scored
+            rewrite_attempts = 0
+
+            if top.score < 80:
+                feedback = self.quality.feedback_for_rewrite(top) + "\nПерепиши один раз. Не меняй тему. Вторую версию мы публикуем, если она валидна."
+                improved, _, improve_warnings = await self.writer.improve(brief, top, feedback, 2)
+                report.count("gpt_variants", report.counters.get("gpt_variants", 0) + len(improved))
+                report.step("ai_writer.improve", "error" if improve_warnings else "ok", {
+                    "provider": "OpenAI",
+                    "model": self.settings.openai_model,
+                    "prompt_file": MASTER_PROMPT_FILE,
+                    "candidate_no": candidate_no,
+                    "attempt": 2,
+                    "action": "single_rewrite_below_80",
+                    "variants": len(improved),
+                    "warnings": improve_warnings,
+                })
+                if improved:
+                    rewrite_attempts = 1
+                    processed2 = self._postprocess_variants(improved, brief, report)
+                    scored2 = sorted([self.quality.score_variant(self.quality.checker.sanitize(v), brief) for v in processed2], key=lambda v: v.score, reverse=True)
+                    if scored2:
+                        final_variant = scored2[0]
+                        final_scored = scored2
+                        final_variant.warnings.append("опубликована вторая версия после одной переписки, потому что первая была ниже 80/100")
+                        report.step("quality.gate", "forced_publish_second_version", {
+                            "decision": "publishable_after_single_rewrite",
+                            "score": final_variant.score,
+                            "title": final_variant.title,
+                            "reasons": final_variant.why_it_works,
+                            "warnings": final_variant.warnings,
+                            "candidate_no": candidate_no,
+                            "attempt": 2,
+                            "rewrite_attempts": 1,
+                        })
+                else:
+                    # Если OpenAI не вернул улучшение, не публикуем первую откровенно слабую версию: берём следующую тему.
+                    last_error = "первая версия ниже 80, а OpenAI не вернул улучшение"
+                    self._remember_rejected(signal, last_error)
+                    continue
+
+            media = self.media.find_or_generate(brief, final_variant)
+            report.count("media", 1 if media and (media.path or media.url) else 0)
+            report.step("media.find_or_generate", "ok", media.to_dict() if media else {})
+
+            session_id = self.state.new_session_id()
+            prepared = PreparedPost(
+                session_id=session_id,
+                signal=signal,
+                brief=brief,
+                variants=final_scored,
+                best_variant_id=final_variant.variant_id,
+                media=media,
+                diagnostics=report.to_dict(),
+            )
+            self.state.save_session(prepared.to_dict())
+            if remember_preview:
+                self.state.remember_preview(signal, final_variant.title)
+            report.finish("prepared", f"Подготовлено: {final_variant.title}")
+            return prepared, report
+
+        report.finish("error", f"Не удалось подготовить пост: {last_error or 'OpenAI не вернул валидный пост по новым темам'}")
         return None, report
+
+    def _postprocess_variants(self, variants: list[PostVariant], brief, report: RunReport) -> list[PostVariant]:
+        processed: list[PostVariant] = []
+        for v in variants:
+            v = self.engagement.improve(v, brief)
+            v = self.fact.check(v, brief)
+            v = self.cta.apply(v, brief)
+            processed.append(v)
+        if processed:
+            report.step("cta.apply", "ok", {"buttons": [b.text for b in processed[0].buttons]})
+        return processed
 
     async def publish_prepared(self, prepared: PreparedPost, variant_id: int | None = None, channels: list[str] | None = None, dry_run: bool = False) -> tuple[dict[str, Any], RunReport]:
         report = RunReport()
@@ -393,11 +353,23 @@ class EditorialPipeline:
             "city": signal.city,
             "country": signal.country,
             "semantic_hash": signal.semantic_hash,
+            "topic_key": topic_key(signal.title, signal.city, signal.country, signal.genre, signal.angle),
             "channels_result": result,
         })
 
     def _remember_rejected(self, signal: Signal, reason: str) -> None:
         from .config_loader import DATA_DIR, load_json, save_json
         data = load_json(DATA_DIR / "rejected_topics.json", default=[])
-        data.append({"time": now_iso(), "title": signal.title, "source_key": signal.source_key, "reason": reason})
+        data.append({
+            "time": now_iso(),
+            "title": signal.title,
+            "url": signal.url,
+            "source_key": signal.source_key,
+            "genre": signal.genre,
+            "city": signal.city,
+            "country": signal.country,
+            "semantic_hash": signal.semantic_hash,
+            "topic_key": topic_key(signal.title, signal.city, signal.country, signal.genre, signal.angle),
+            "reason": reason,
+        })
         save_json(DATA_DIR / "rejected_topics.json", data[-500:])

@@ -60,3 +60,24 @@ def split_sentences(text: str) -> list[str]:
 
 def safe_html(text: str) -> str:
     return html.escape(text or "", quote=False)
+
+
+def meaningful_tokens(text: str) -> set[str]:
+    text = normalize_spaces(text).lower()
+    text = re.sub(r"[^a-zа-я0-9 ]+", " ", text, flags=re.I)
+    stop = {
+        "для", "или", "как", "что", "это", "если", "чем", "при", "про", "без", "под", "над",
+        "куда", "когда", "почему", "сейчас", "новый", "новая", "новые", "лучшие", "топ",
+        "путешествия", "поездки", "отдых", "тур", "туры", "пост", "места", "место", "год", "года",
+    }
+    return {w for w in text.split() if len(w) >= 4 and w not in stop}
+
+def topic_key(*parts: str) -> str:
+    tokens = sorted(meaningful_tokens(" ".join(p for p in parts if p)))
+    return stable_hash(" ".join(tokens[:30]))
+
+def title_similarity(a: str, b: str) -> float:
+    ta, tb = meaningful_tokens(a), meaningful_tokens(b)
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / max(1, min(len(ta), len(tb)))

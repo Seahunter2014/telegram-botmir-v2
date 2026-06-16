@@ -6,6 +6,7 @@ from typing import Any
 
 from .config_loader import DATA_DIR, load_json, save_json
 from .models import Signal
+from .text_utils import semantic_fingerprint, topic_key
 
 
 class StateStore:
@@ -72,6 +73,30 @@ class StateStore:
                 lines.append(f"- {r.get('score')}/10 · пост {r.get('post_id')} · {r.get('title') or 'без названия'}")
         return "\n".join(lines) if lines else "Оценки есть, но ярких успешных/провальных паттернов пока нет."
 
+
+    def topic_memory_path(self):
+        return DATA_DIR / "topic_memory.json"
+
+    def topic_memory(self) -> list[dict[str, Any]]:
+        return load_json(self.topic_memory_path(), default=[])
+
+    def remember_topic_attempt(self, signal: Signal, reason: str = "attempt", title: str = "") -> None:
+        data = self.topic_memory()
+        key = topic_key(signal.title, signal.city, signal.country, signal.genre, signal.angle)
+        data.append({
+            "time": int(time.time()),
+            "title": title or signal.title,
+            "url": signal.url,
+            "source_key": signal.source_key,
+            "genre": signal.genre,
+            "city": signal.city,
+            "country": signal.country,
+            "semantic_hash": signal.semantic_hash or semantic_fingerprint(signal.title, signal.city, signal.country, signal.genre, signal.angle),
+            "topic_key": key,
+            "reason": reason,
+        })
+        save_json(self.topic_memory_path(), data[-800:])
+
     def save_session(self, session: dict[str, Any]) -> None:
         data = self.load()
         sessions = data.setdefault("sessions", {})
@@ -112,6 +137,7 @@ class StateStore:
             "city": signal.city,
             "country": signal.country,
             "semantic_hash": signal.semantic_hash,
+            "topic_key": topic_key(signal.title, signal.city, signal.country, signal.genre, signal.angle),
         })
         data["preview_history"] = history[-300:]
         self.save(data)
