@@ -28,9 +28,9 @@ class QualitySelector:
             score += 5; reasons.append("заголовок есть, но требует точности")
 
         body_len = len(body)
-        if 700 <= body_len <= 2600:
-            score += 18; reasons.append("объём поста подходит Telegram")
-        elif 450 <= body_len < 700 or 2600 < body_len <= 3600:
+        if 450 <= body_len <= 850:
+            score += 18; reasons.append("короткий объём подходит одному Telegram-посту")
+        elif 300 <= body_len < 450 or 850 < body_len <= 1200:
             score += 10; reasons.append("объём допустимый")
         else:
             variant.warnings.append("неудачный объём текста")

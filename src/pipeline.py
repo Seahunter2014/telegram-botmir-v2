@@ -250,6 +250,19 @@ class EditorialPipeline:
                     self._remember_rejected(signal, last_error)
                     continue
 
+            caption_check = self.post_writer.format(final_variant, brief, with_media=True)
+            if caption_check.second_text:
+                last_error = "готовый пост длиннее лимита caption для фото/видео"
+                report.step("caption.limit", "reject", {
+                    "candidate_no": candidate_no,
+                    "title": final_variant.title,
+                    "limit": self.post_writer.PHOTO_CAPTION_LIMIT,
+                    "length": len(caption_check.first_text) + len(caption_check.second_text),
+                    "reason": "не публикуем частями и не публикуем без медиа",
+                })
+                self._remember_rejected(signal, last_error)
+                continue
+
             media = self.media.find_or_generate(brief, final_variant)
             report.count("media", 1 if media and (media.path or media.url) else 0)
             report.step("media.find_or_generate", "ok", media.to_dict() if media else {})
@@ -298,9 +311,22 @@ class EditorialPipeline:
                 if v.variant_id == variant_id:
                     variant = v
                     break
-        formatted = self.post_writer.format(variant, prepared.brief, with_media=bool(prepared.media and (prepared.media.path or prepared.media.url)))
+        media = prepared.media if prepared.media and (prepared.media.path or prepared.media.url) else None
+        if not media:
+            result = {channel: {"ok": False, "error": "media_required"} for channel in (channels or self.state.channels(self.settings.telegram_channel_id))}
+            report.count("published", 0)
+            report.step("publisher.publish", "error", result)
+            report.finish("error", "Публикация остановлена: для поста обязательно фото или видео")
+            return result, report
+        formatted = self.post_writer.format(variant, prepared.brief, with_media=True)
+        if formatted.second_text:
+            result = {channel: {"ok": False, "error": "caption_too_long_for_single_media_post"} for channel in (channels or self.state.channels(self.settings.telegram_channel_id))}
+            report.count("published", 0)
+            report.step("publisher.publish", "error", result)
+            report.finish("error", "Публикация остановлена: caption не помещается в один пост с медиа")
+            return result, report
         channels = channels or self.state.channels(self.settings.telegram_channel_id)
-        result = await self.publisher.publish(channels, formatted, variant.buttons, prepared.media, dry_run=dry_run)
+        result = await self.publisher.publish(channels, formatted, variant.buttons, media, dry_run=dry_run)
         published_ok = sum(1 for r in result.values() if r.get("ok"))
         report.count("published", published_ok)
         report.step("publisher.publish", "ok" if published_ok else "error", result)
