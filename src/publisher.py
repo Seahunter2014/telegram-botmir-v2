@@ -9,6 +9,8 @@ from .telegram_post_writer import FormattedPost
 
 
 class Publisher:
+    BUTTONS_MESSAGE_TEXT = "↓ Собери свое путешествие ↓"
+
     def __init__(self, bot=None):
         self.bot = bot
 
@@ -21,16 +23,18 @@ class Publisher:
     async def _publish_one(self, channel: str, post: FormattedPost, buttons: list[Button], media: MediaAsset | None, dry_run: bool) -> dict[str, Any]:
         if dry_run or not self.bot:
             return {"ok": True, "dry_run": True, "channel": channel, "parts": 2 if post.second_text else 1}
-        markup_first = None if post.buttons_on_second else self._markup(buttons)
-        markup_second = self._markup(buttons) if post.buttons_on_second else None
+        buttons_markup = self._markup(buttons)
         try:
             if media and (media.path or media.url):
-                first_message = await self._send_photo(channel, media, post.first_text, markup_first)
+                first_message = await self._send_photo(channel, media, post.first_text, None)
             else:
-                first_message = await self._send_message(channel, post.first_text, markup_first)
+                first_message = await self._send_message(channel, post.first_text, None)
             second_message = None
             if post.second_text:
-                second_message = await self._send_message(channel, post.second_text, markup_second)
+                second_message = await self._send_message(channel, post.second_text, None)
+            buttons_message = None
+            if buttons_markup:
+                buttons_message = await self._send_message(channel, self.BUTTONS_MESSAGE_TEXT, buttons_markup)
             post_id = getattr(first_message, "message_id", None)
             result = {"ok": True, "channel": channel}
             if post_id:
@@ -40,6 +44,8 @@ class Publisher:
             if second_message:
                 result["parts"] = 2
                 result["second_post_id"] = getattr(second_message, "message_id", None)
+            if buttons_message:
+                result["buttons_post_id"] = getattr(buttons_message, "message_id", None)
             return result
         except Exception as exc:
             try:
