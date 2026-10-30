@@ -31,6 +31,7 @@ from .source_health import SourceHealthStore
 from .state_store import StateStore
 from .telegram_post_writer import TelegramPostWriter
 from .version import PROJECT_NAME, VERSION
+from .security import is_private_chat
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("mir-na-ladoni")
@@ -90,6 +91,10 @@ def is_admin(update: Update) -> bool:
 
 
 async def admin_only(update: Update) -> bool:
+    # Админ-панель разрешена только в личном чате: команды из каналов и групп
+    # не должны оставлять служебные ответы в публичной ленте.
+    if not is_private_chat(update.effective_chat):
+        return False
     if is_admin(update):
         return True
     if update.effective_message:
@@ -420,7 +425,7 @@ async def last_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     q = update.callback_query
     await q.answer()
-    if not is_admin(update):
+    if not is_private_chat(update.effective_chat) or not is_admin(update):
         return
     data = q.data or ""
     if data.startswith("publish:"):
@@ -520,7 +525,7 @@ async def menu_text_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) 
 
 
 async def unknown_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    if update.message:
+    if update.message and is_private_chat(update.effective_chat) and is_admin(update):
         await update.message.reply_text("Команда не распознана. Используйте /menu или кнопки управления.", reply_markup=main_menu())
 
 

@@ -9,6 +9,9 @@ def main():
     assert "ОДИН лучший" in prompt, "master prompt должен требовать один лучший пост"
     assert "не ставь себе оценку" in prompt.lower() or "ставить себе оценку" in prompt.lower(), "запрет самооценки обязателен"
     assert '"decision"' in prompt and '"title"' in prompt and '"body"' in prompt, "JSON contract неполный"
+    assert "ровно один конкретный шаг" in prompt, "пост должен предлагать не больше одного действия"
+    assert "единственное место для призыва к действию" in prompt, "призыв должен быть только в cta_text"
+    assert "код; никогда не сочиняй их в тексте" in prompt, "метки кампании задаются приложением, не моделью"
     ai = (ROOT / "src" / "ai_writer.py").read_text(encoding="utf-8")
     assert "master_writer_ru.md" in ai, "AIWriter должен использовать master_writer_ru.md"
     assert "self.local_fallback = False" in ai, "локальный fallback должен быть отключён"
@@ -16,3 +19,4 @@ def main():
     print("OK: master prompt contract")
 
 if __name__ == "__main__": main()
+
